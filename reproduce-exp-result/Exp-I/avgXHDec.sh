@@ -1,0 +1,14 @@
+batchNum=$1
+queryPath="query/"
+logFile="log.txt"
+
+totalT=0
+for i in $( seq 1 $batchNum )
+do
+./Q2XH.sh $queryPath"query_$i.txt" graph.del
+../XH.out -d ./ > $logFile 2>&1
+runningT=`cat $logFile | grep "Time" | sed 's/m/ /g' | awk '{printf("%.3f\n", $4)}'`
+totalT=`echo "scale=3; $totalT+$runningT" | bc`
+done
+echo "scale=3; $totalT/$batchNum" | bc
+rm $logFile graph_del.truss graph.del
