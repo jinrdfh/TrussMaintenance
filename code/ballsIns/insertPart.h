@@ -63,7 +63,7 @@ private:
     static bool checkDesSeSup(myG &mpG, int iSelfId, int iLtId, int iRtId);
 
     static int fillInfo(myG &mpG, map<int, vector <int> > &mpPrivate, list<pair<int, int> > &lstQuery, map<int, TPST_BALL_INFO > &mpBallInfo);
-    //static int disjoint(map<int, TPST_BALL_INFO > &mpBallInfo, vector< vector<int> > &vInsScheme);
+    static int disjoint(myG &mpG, map<int, TPST_BALL_INFO > &mpBallInfo, vector< vector<int> > &vInsScheme);
 
     static int nodeDec(myG &mpG, int iNode, vector <int> &vSeed);
     static int edgeDec(myG &mpG, int iEid, vector <int> &vSeed);

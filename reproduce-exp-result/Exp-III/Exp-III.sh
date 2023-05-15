@@ -1,21 +1,19 @@
-datasets=(deezer_RO amazon)
+
+datasets=(Deezer Amazon DBLP Skitter Patents Pokec LJ Orkut Wise)
+# datasets=(Deezer)
 batNum=100
 
 output="Exp-III.csv"
 
-header=",Step 1 (ms),Step 2 (ms)"
+header=",|E|,|B_in|,|L_CHG|,|T_CHG|"
 echo $header > $output
 
 for dataset in ${datasets[@]}
 do
-	# generate queries
-	./randomPs.sh ../$dataset".txt" oldGraph.txt $batNum >/dev/null
-	# ours
-	./G2Ours.sh oldGraph.txt oldGraph.myG >/dev/null
-	ourIncT=`./avgOursInc.sh oldGraph.myG $batNum`
+	dataSize=`wc -l ../data/$dataset".txt" | awk '{print $1}'`
+	ourInc=`./avgOursInc.sh ../data/$dataset"_sample.myG" ../data/$dataset"_query/" $batNum`
 
 	# save
-	resultLine="$dataset,$ourIncT"
+	resultLine="$dataset,$dataSize,$ourInc"
 	echo $resultLine >> $output
 done
-rm oldGraph.txt oldGraph.myG 

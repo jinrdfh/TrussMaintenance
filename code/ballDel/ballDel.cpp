@@ -50,10 +50,11 @@ int init(char *pcIndexFile, char *pcPrivateFile, map<int, vector <int> > &mpPriv
            iPublicSize, iPirvateMaxSize);
     g_baseG.m_pvG->reserve(iPublicSize + iPirvateMaxSize + 10);
     printf("init reserve neighbor\n");
-    g_baseG.m_pvPNeCnt->resize(iMaxPid + 1);
+    g_baseG.m_vAdj.resize(iMaxPid + 1);
     DEBUG_PRINTF("DEBUG init len: %d, capacity: %d reserve len: %d\n",
-           g_baseG.m_pvPNeCnt->size(), g_baseG.m_pvPNeCnt->capacity(), iMaxPid + 10);
-    g_baseG.m_pvPNeCnt->reserve(iMaxPid + 10);
+           g_baseG.m_vAdj.size(), g_baseG.m_vAdj.capacity(), iMaxPid + 10);
+
+    g_baseG.init();
 
     return 0;
 }
@@ -113,7 +114,7 @@ int main(int argc, char *argv[])
         printf("DEBUG query time %.3f ms\n", (lCurTime - lStartTime) / 1000.0);
     }
 
-    printf("finish query\n");
+    printf("finish query init cnt: %d\n", g_baseG.m_iInitCnt);
     /* save result */
     if (4 < argc)
     {

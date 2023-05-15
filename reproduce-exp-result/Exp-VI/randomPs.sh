@@ -1,6 +1,7 @@
 dataFile=$1
-ratio=0.5
 graphFile=$2
 batNum=$3
+neibR=$4
+overlapR=$5
 
-python ../randomPMulNode.py $dataFile $ratio $graphFile query/private.txt ./query/ query/query.txt $batNum
+python ./randomOverlapNodes.py $dataFile $graphFile query/private.txt query/query.txt ./query/ $neibR $overlapR $batNum

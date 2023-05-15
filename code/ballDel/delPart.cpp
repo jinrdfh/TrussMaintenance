@@ -20,1046 +20,16 @@ extern long g_lUpdateKTime;
 extern long g_lRecalLTime;
 extern long g_lUpdateLTime;
 
+long g_lRecalLInitTime;
+long g_lRecalLCntTime;
+long g_lRecalLCalTime;
+
 long g_lBFSCnt;
 long g_lDeCnt;
-#if 0
-/*****************
-input:
-        myG &mpG
-        int iEid
-description:
-        check removal condition
-******************/
-int delPart::lcDecomp(myG &mpG, int iCurT, int iCurL, vector <int> &vUpSeed)
-{
-    TPST_MAP_BY_EID *pstNode = NULL;
-    TPST_MAP_BY_EID *pstLfNode = NULL;
-    TPST_MAP_BY_EID *pstRtNode = NULL;
-    vector <int>::iterator itLfE;
-    vector <int>::iterator itRtE;
-    int iMinT = 0;
-    int iNewLayer = 0;
-    int iCurLayer = iCurL;
-    int iCurK = iCurT;
-    bool bLfFlag = false;
-    bool bRtFlag = false;
-    vector<int>::iterator itvE;
-    /* little */
-    myPriQueue myCanQ;
-    vector <int> vWaitQ;
-    vector <int> vWaitQSla;
-    vector <int> vVisitQ;
-
-    DEBUG_PRINTF("LOCAL enter k: %d layer: %d\n", iCurT, iCurL);
-
-    /* Find neighbor and increase SeSup */
-    for (itvE = vUpSeed.begin(); itvE != vUpSeed.end(); ++itvE)
-    {
-        pstNode = mpG.findNode(*itvE);
-        DEBUG_ASSERT(NULL != pstNode);
-
-        DEBUG_ASSERT(pstNode->iSeSup + 2 > iCurK);
-        pstNode->bCanQFlag = false;
-        pstNode->bUsedCanFlag = false;
-        pstNode->bDgdFlag = true;
-        vVisitQ.push_back(pstNode->eid);
-        DEBUG_PRINTF("LOCAL seed: (%d, %d)\n",
-                     pstNode->paXY.first, pstNode->paXY.second);
-
-        DEBUG_ASSERT(iCurLayer == pstNode->iLayer);
-
-        vector<int> vLfE;
-        vector<int> vRtE;
-        mpG.findNeb(pstNode->eid, vLfE, vRtE);
-
-        itLfE = vLfE.begin();
-        itRtE = vRtE.begin();
-        for (; itLfE != vLfE.end(); ++itLfE, ++itRtE)
-        {
-            pstLfNode = mpG.findNode(*itLfE);
-            DEBUG_ASSERT(NULL != pstLfNode);
-            pstRtNode = mpG.findNode(*itRtE);
-            DEBUG_ASSERT(NULL != pstRtNode);
-
-            DEBUG_PRINTF("LOCAL visit: (%d, %d) (%d, %d) k: %d %d layer: %d %d seSup: %d %d eid: %d %d self: (%d, %d) layer: %d\n",
-                         pstLfNode->paXY.first, pstLfNode->paXY.second,
-                         pstRtNode->paXY.first, pstRtNode->paXY.second,
-                         pstLfNode->iTrussness, pstRtNode->iTrussness,
-                         pstLfNode->iLayer, pstRtNode->iLayer,
-                         pstLfNode->iSeSup, pstRtNode->iSeSup,
-                         pstLfNode->eid, pstRtNode->eid,
-                         pstNode->paXY.first, pstNode->paXY.second,
-                         pstNode->iLayer);
-
-            iMinT = COMMON_MIN(pstLfNode->iTrussness, pstRtNode->iTrussness);
-            if (iMinT != iCurK)
-            {
-                /* not meet, ignore */
-                continue;
-            }
-            iNewLayer = COMMON_TRG_MIN(pstNode->iLayer + 1,
-                            pstLfNode->iLayer,
-                            (pstLfNode->iTrussness > iCurK),
-                            pstRtNode->iLayer,
-                            (pstRtNode->iTrussness > iCurK));
-            if (iNewLayer != iCurLayer)
-            {
-                continue;
-            }
-
-            if ((iCurK == pstLfNode->iTrussness) &&
-                (iNewLayer == pstLfNode->iLayer) &&
-                (pstLfNode->iSeSup + 2 <= iCurK) &&
-                (!pstLfNode->bCanQFlag))
-            {
-                vWaitQ.push_back(pstLfNode->eid);
-                pstLfNode->bCanQFlag = true;
-                pstLfNode->bUsedCanFlag = true;
-                vVisitQ.push_back(pstLfNode->eid);
-            }
-            if ((iCurK == pstRtNode->iTrussness) &&
-                (iNewLayer == pstRtNode->iLayer) &&
-                (pstRtNode->iSeSup + 2 <= iCurK) &&
-                (!pstRtNode->bCanQFlag))
-            {
-                vWaitQ.push_back(pstRtNode->eid);
-                pstRtNode->bCanQFlag = true;
-                pstRtNode->bUsedCanFlag = true;
-                vVisitQ.push_back(pstRtNode->eid);
-            }
-        }
-    }
-
-    /* peeling */
-    while (!vWaitQ.empty())
-    {
-        /* set flag */
-        for (itvE = vWaitQ.begin(); itvE != vWaitQ.end(); ++itvE)
-        {
-            pstNode = mpG.findNode(*itvE);
-            DEBUG_ASSERT(NULL != pstNode);
-
-            DEBUG_ASSERT(pstNode->bCanQFlag);
-            pstNode->bDgdFlag = false;
-        }
-        for (itvE = vWaitQ.begin(); itvE != vWaitQ.end(); ++itvE)
-        {
-            pstNode = mpG.findNode(*itvE);
-            DEBUG_ASSERT(NULL != pstNode);
-
-            DEBUG_PRINTF("LOCAL current: (%d, %d) k: %d layer: %d seSup: %d\n",
-                         pstNode->paXY.first, pstNode->paXY.second,
-                         pstNode->iTrussness, pstNode->iLayer,
-                         pstNode->iSeSup);
-
-            DEBUG_ASSERT(pstNode->iSeSup >= 0);
-
-            pstNode->bRmFlag = true;
-            pstNode->bCanQFlag = false;
-            pstNode->bUsedCanFlag = false;
-
-            vector<int> vLfE;
-            vector<int> vRtE;
-            mpG.findNeb(pstNode->eid, vLfE, vRtE);
-
-            itLfE = vLfE.begin();
-            itRtE = vRtE.begin();
-            for (; itLfE != vLfE.end(); ++itLfE, ++itRtE)
-            {
-                pstLfNode = mpG.findNode(*itLfE);
-                DEBUG_ASSERT(NULL != pstLfNode);
-                pstRtNode = mpG.findNode(*itRtE);
-                DEBUG_ASSERT(NULL != pstRtNode);
-
-                DEBUG_PRINTF("LOCAL visit: (%d, %d) (%d, %d) k: %d %d layer: %d %d seSup: %d %d eid: %d %d bool: %d %d %d %d %d %d self: (%d, %d) layer: %d\n",
-                             pstLfNode->paXY.first, pstLfNode->paXY.second,
-                             pstRtNode->paXY.first, pstRtNode->paXY.second,
-                             pstLfNode->iTrussness, pstRtNode->iTrussness,
-                             pstLfNode->iLayer, pstRtNode->iLayer,
-                             pstLfNode->iSeSup, pstRtNode->iSeSup,
-                             pstLfNode->eid, pstRtNode->eid,
-                             pstLfNode->bRmFlag, pstRtNode->bRmFlag,
-                             pstLfNode->bDgdFlag, pstRtNode->bDgdFlag,
-                             pstLfNode->bCanQFlag, pstRtNode->bCanQFlag,
-                             pstNode->paXY.first, pstNode->paXY.second,
-                             pstNode->iLayer);
-
-                iMinT = COMMON_MIN(pstLfNode->iTrussness, pstRtNode->iTrussness);
-                if (iMinT != iCurK)
-                {
-                    /* not meet, ignore */
-                    continue;
-                }
-                if (pstLfNode->bRmFlag || pstRtNode->bRmFlag)
-                {
-                    continue;
-                }
-                bLfFlag = false;
-                bRtFlag = false;
-                if (pstLfNode->bDgdFlag && pstRtNode->bDgdFlag)
-                {
-                    bLfFlag = true;
-                    bRtFlag = true;
-                }
-                else if (pstLfNode->bDgdFlag)
-                {
-                    if ((pstRtNode->iTrussness > iCurK) ||
-                        (pstRtNode->bDgdFlag) ||
-                        (pstRtNode->bCanQFlag))
-                    {
-                        bLfFlag = true;
-                    }
-                }
-                else if (pstRtNode->bDgdFlag)
-                {
-                    if ((pstLfNode->iTrussness > iCurK) ||
-                        (pstLfNode->bDgdFlag) ||
-                        (pstLfNode->bCanQFlag))
-                    {
-                        bRtFlag = true;
-                    }
-                }
-                else
-                {
-                    continue;
-                }
-
-                if (bLfFlag)
-                {
-                    pstLfNode->iSeSup--;
-                    DEBUG_PRINTF("LOCAL decrease SeSup: (%d, %d) k: %d layer: %d seSup: %d\n",
-                                 pstLfNode->paXY.first, pstLfNode->paXY.second,
-                                 pstLfNode->iTrussness, pstLfNode->iLayer,
-                                 pstLfNode->iSeSup);
-                    if (pstLfNode->iSeSup + 2 <= iCurK)
-                    {
-                        /* wait to be removed */
-                        if (!pstLfNode->bCanQFlag)
-                        {
-                            pstLfNode->bCanQFlag = true;
-                            pstLfNode->bUsedCanFlag = true;
-                            pstLfNode->iLayer = iCurLayer + 1;
-                            vWaitQSla.push_back(pstLfNode->eid);
-                            vVisitQ.push_back(pstLfNode->eid);
-                            DEBUG_PRINTF("LOCAL set: (%d, %d) k: %d layer: %d seSup: %d\n",
-                                         pstLfNode->paXY.first, pstLfNode->paXY.second,
-                                         pstLfNode->iTrussness, pstLfNode->iLayer,
-                                         pstLfNode->iSeSup);
-                        }
-                    }
-                }
-                if (bRtFlag)
-                {
-                    pstRtNode->iSeSup--;
-                    DEBUG_PRINTF("LOCAL decrease SeSup: (%d, %d) k: %d layer: %d seSup: %d\n",
-                                 pstRtNode->paXY.first, pstRtNode->paXY.second,
-                                 pstRtNode->iTrussness, pstRtNode->iLayer,
-                                 pstRtNode->iSeSup);
-                    if (pstRtNode->iSeSup + 2 <= iCurK)
-                    {
-                        /* wait to be removed */
-                        if (!pstRtNode->bCanQFlag)
-                        {
-                            pstRtNode->bCanQFlag = true;
-                            pstRtNode->bUsedCanFlag = true;
-                            pstRtNode->iLayer = iCurLayer + 1;
-                            vWaitQSla.push_back(pstRtNode->eid);
-                            vVisitQ.push_back(pstRtNode->eid);
-                            DEBUG_PRINTF("LOCAL set: (%d, %d) k: %d layer: %d seSup: %d\n",
-                                         pstRtNode->paXY.first, pstRtNode->paXY.second,
-                                         pstRtNode->iTrussness, pstRtNode->iLayer,
-                                         pstRtNode->iSeSup);
-                        }
-                    }
-                }
-            }
-        }
-        ++iCurLayer;
-        vWaitQ.swap(vWaitQSla);
-        vWaitQSla.clear();
-    }
-    /* restore */
-    for (itvE = vVisitQ.begin(); itvE != vVisitQ.end(); ++itvE)
-    {
-        pstNode = mpG.findNode(*itvE);
-        DEBUG_ASSERT(NULL != pstNode);
-        pstNode->bCanQFlag = false;
-        pstNode->bUsedCanFlag = false;
-        pstNode->bDgdFlag = false;
-        pstNode->bRmFlag = false;
-    }
-    return 0;
-}
-/*****************
-input:
-        myG &mpG
-        int iCurT
-        vector <int> &vSeed
-        vector <int> &vDgdE
-        vector <int> &vDgdSeed
-description:
-        increase k directly
-******************/
-int delPart::deKByBFSEasy(myG &mpG, int iCurT, vector <int> &vSeed, vector <int> &vDgdE, vector <int> &vDgdSeed)
-{
-    TPST_MAP_BY_EID *pstNode = NULL;
-    TPST_MAP_BY_EID *pstTpNode = NULL;
-    TPST_MAP_BY_EID *pstLfNode = NULL;
-    TPST_MAP_BY_EID *pstRtNode = NULL;
-    list<int>::iterator itE;
-    vector <int> vVisit;
-    vector <int> vUgdSeed;
-    vector<int>::iterator itvE;
-    vector <int>::iterator itLfE;
-    vector <int>::iterator itRtE;
-
-    int iCurEid = 0;
-    int iCurLayer = 0;
-    int iMinT = 0;
-    int iCurK = iCurT;
-    int iNewLayer = 0;
-    int iHighLCnt = 0;
-    int iSameLCnt = 0;
-    int iCurMaxLayer = 0;
-    int iLfLayer = 0;
-    int iRtLayer = 0;
-
-    struct timeval tv;
-	long lStartTime = 0;
-	long lLcStartTime = 0;
-	long lCurTime = 0;
-
-    /* <layer, eid> */
-    myPriQueueBig myCanQ;
-    list <int> lsCurLayer;
-
-    bool res = false;
-	bool bLfCheckFlag = false;
-	bool bRtCheckFlag = false;
-
-    DEBUG_ASSERT(vDgdSeed.empty());
-    DEBUG_PRINTF("DEBUG start BFS k: %d\n",
-                 iCurT);
-    for (itvE = vSeed.begin(); itvE != vSeed.end(); ++itvE)
-    {
-        pstNode = mpG.findNode(*itvE);
-        DEBUG_ASSERT(NULL != pstNode);
-
-        if (!pstNode->bVstFlag)
-        {
-            pstNode->bVstFlag = true;
-            ++g_lBFSCnt;
-            vVisit.push_back(pstNode->eid);
-            myCanQ.insetByOrder(pstNode->iLayer, pstNode->eid);
-            pstNode->bCanQFlag = true;
-            pstNode->bUsedCanFlag = true;
-
-            iCurMaxLayer = COMMON_MAX(iCurMaxLayer, pstNode->iLayer);
-
-            DEBUG_PRINTF("DEBUG seed: (%d, %d) k: %d layer: %d seSup: %d\n",
-                         pstNode->paXY.first, pstNode->paXY.second,
-                         pstNode->iTrussness, pstNode->iLayer,
-                         pstNode->iSeSup);
-        }
-    }
-
-    iCurLayer = iCurMaxLayer;
-
-    DEBUG_PRINTF("DEBUG start queue\n");
-    while ((!myCanQ.empty()) || (!lsCurLayer.empty()))
-    {
-        if (!myCanQ.empty())
-        {
-            iCurEid = myCanQ.getTop();
-
-            pstNode = mpG.findNode(iCurEid);
-            DEBUG_ASSERT(NULL != pstNode);
-            if (!pstNode->bCanQFlag)
-            {
-                /* has been removed, ignore */
-                myCanQ.pop();
-                pstNode->bUsedCanFlag = false;
-                continue;
-            }
-            DEBUG_ASSERT(pstNode->iLayer == myCanQ.getDy());
-
-            if (pstNode->iLayer > iCurLayer)
-            {
-                /* insert back */
-                while (!lsCurLayer.empty())
-                {
-                    iCurEid = lsCurLayer.front();
-                    pstTpNode = mpG.findNode(iCurEid);
-                    DEBUG_ASSERT(NULL != pstTpNode);
-
-                    myCanQ.insetByOrder(pstTpNode->iLayer, pstTpNode->eid);
-                    pstTpNode->bUsedCanFlag = true;
-                    lsCurLayer.pop_front();
-                }
-                iCurLayer = pstNode->iLayer;
-            }
-
-            /* fill current layer */
-            while (pstNode->iLayer >= iCurLayer)
-            {
-                lsCurLayer.push_back(pstNode->eid);
-                myCanQ.pop();
-                pstNode->bUsedCanFlag = false;
-                if (myCanQ.empty())
-                {
-                    break;
-                }
-                iCurEid = myCanQ.getTop();
-                pstNode = mpG.findNode(iCurEid);
-                DEBUG_ASSERT(NULL != pstNode);
-                if (!pstNode->bCanQFlag)
-                {
-                    /* has been removed, ignore */
-                    myCanQ.pop();
-                    pstNode->bUsedCanFlag = false;
-                    continue;
-                }
-                DEBUG_ASSERT(pstNode->iLayer == myCanQ.getDy());
-            }
-        }
-
-        if (lsCurLayer.empty())
-        {
-            /* decrease layer, set the lowest value */
-            iCurLayer = 1;
-            continue;
-        }
-        DEBUG_PRINTF("DEBUG ------layer: %d\n",
-                         iCurLayer);
-        if (1 == iCurLayer)
-        {
-            /* BFS */
-            for (itE = lsCurLayer.begin(); itE != lsCurLayer.end(); )
-            {
-                pstNode = mpG.findNode(*itE);
-                DEBUG_ASSERT(NULL != pstNode);
-
-                DEBUG_PRINTF("DEBUG ------queue: (%d, %d) k: %d layer: %d seSup: %d\n",
-                             pstNode->paXY.first, pstNode->paXY.second,
-                             pstNode->iTrussness, pstNode->iLayer,
-                             pstNode->iSeSup);
-                DEBUG_ASSERT(iCurLayer == pstNode->iLayer);
-
-                vector<int> vLfE;
-                vector<int> vRtE;
-                mpG.findNeb(pstNode->eid, vLfE, vRtE);
-
-                itLfE = vLfE.begin();
-                itRtE = vRtE.begin();
-                for (; itLfE != vLfE.end(); ++itLfE, ++itRtE)
-                {
-                    pstLfNode = mpG.findNode(*itLfE);
-                    DEBUG_ASSERT(NULL != pstLfNode);
-                    pstRtNode = mpG.findNode(*itRtE);
-                    DEBUG_ASSERT(NULL != pstRtNode);
-
-                    bLfCheckFlag = false;
-                    bRtCheckFlag = false;
-
-                    DEBUG_PRINTF("DEBUG visit: (%d, %d) (%d, %d) k: %d %d layer: %d %d seSup: %d %d eid: %d %d self: (%d, %d) layer: %d\n",
-                                 pstLfNode->paXY.first, pstLfNode->paXY.second,
-                                 pstRtNode->paXY.first, pstRtNode->paXY.second,
-                                 pstLfNode->iTrussness, pstRtNode->iTrussness,
-                                 pstLfNode->iLayer, pstRtNode->iLayer,
-                                 pstLfNode->iSeSup, pstRtNode->iSeSup,
-                                 pstLfNode->eid, pstRtNode->eid,
-                                 pstNode->paXY.first, pstNode->paXY.second,
-                                 pstNode->iLayer);
-
-                    iMinT = COMMON_MIN(pstLfNode->iTrussness, pstRtNode->iTrussness);
-                    if (iMinT != iCurK)
-                    {
-                        /* not meet, ignore */
-                        continue;
-                    }
-
-                    /* visited Queue check */
-                    iNewLayer = COMMON_TRG_MIN(pstNode->iLayer + 1,
-                                    pstLfNode->iLayer,
-                                    (pstLfNode->iTrussness > iCurK),
-                                    pstRtNode->iLayer,
-                                    (pstRtNode->iTrussness > iCurK));
-                    if (1 > iNewLayer)
-                    {
-                        /* no change */
-                        continue;
-                    }
-                    else if (iNewLayer > 1)
-                    {
-                        if ((pstLfNode->iTrussness == iCurK) &&
-                            (pstLfNode->iLayer == 2) &&
-                            (!pstLfNode->bCanQFlag))
-                        {
-                            bLfCheckFlag = true;
-                        }
-                        if ((pstRtNode->iTrussness == iCurK) &&
-                            (pstRtNode->iLayer == 2) &&
-                            (!pstRtNode->bCanQFlag))
-                        {
-                            bRtCheckFlag = true;
-                        }
-                    }
-                    else if (iNewLayer == 1)
-                    {
-                        /* should decrease others SeSup */
-                        if (pstLfNode->iTrussness == iCurK)
-                        {
-                            if (pstLfNode->iLayer == 1)
-                            {
-                                if (!pstLfNode->bCanQFlag)
-                                {
-                                    res = checkRmFirstCdt(mpG, pstLfNode->eid);
-                                    if (!res)
-                                    {
-                                        lsCurLayer.push_back(pstLfNode->eid);
-                                        pstLfNode->bCanQFlag = true;
-                                        DEBUG_PRINTF("BFS push left: (%d, %d) k: %d layer: %d seSup: %d\n",
-                                                     pstLfNode->paXY.first, pstLfNode->paXY.second,
-                                                     pstLfNode->iTrussness, pstLfNode->iLayer,
-                                                     pstLfNode->iSeSup);
-                                    }
-                                }
-                            }
-                            else if ((pstLfNode->iLayer == 2) &&
-                                     (!pstLfNode->bCanQFlag))
-                            {
-                                bLfCheckFlag = true;
-                            }
-                        }
-                        if (pstRtNode->iTrussness == iCurK)
-                        {
-                            if (pstRtNode->iLayer == 1)
-                            {
-                                if (!pstRtNode->bCanQFlag)
-                                {
-                                    res = checkRmFirstCdt(mpG, pstRtNode->eid);
-                                    if (!res)
-                                    {
-                                        lsCurLayer.push_back(pstRtNode->eid);
-                                        pstRtNode->bCanQFlag = true;
-                                        DEBUG_PRINTF("BFS push right: (%d, %d) k: %d layer: %d seSup: %d\n",
-                                                     pstRtNode->paXY.first, pstRtNode->paXY.second,
-                                                     pstRtNode->iTrussness, pstRtNode->iLayer,
-                                                     pstRtNode->iSeSup);
-                                    }
-                                }
-                            }
-                            else if ((pstRtNode->iLayer == 2) &&
-                                     (!pstRtNode->bCanQFlag))
-                            {
-                                bRtCheckFlag = true;
-                            }
-                        }
-                    }
-
-                    if (bLfCheckFlag)
-                    {
-                        res = checkRmSecCdt(mpG, pstLfNode->eid);
-                        if (!res)
-                        {
-                            DEBUG_ASSERT(!pstLfNode->bCanQFlag);
-                            DEBUG_ASSERT(!pstLfNode->bUsedCanFlag);
-                            myCanQ.insetByOrder(pstLfNode->iLayer, pstLfNode->eid);
-                            pstLfNode->bCanQFlag = true;
-                            pstLfNode->bUsedCanFlag = true;
-                        }
-                    }
-                    if (bRtCheckFlag)
-                    {
-                        res = checkRmSecCdt(mpG, pstRtNode->eid);
-                        if (!res)
-                        {
-                            DEBUG_ASSERT(!pstRtNode->bCanQFlag);
-                            DEBUG_ASSERT(!pstRtNode->bUsedCanFlag);
-                            myCanQ.insetByOrder(pstRtNode->iLayer, pstRtNode->eid);
-                            pstRtNode->bCanQFlag = true;
-                            pstRtNode->bUsedCanFlag = true;
-                        }
-                    }
-                }
-                ++itE;
-            }
-
-            /* clear other layer */
-            if (!myCanQ.empty())
-            {
-                continue;
-            }
-
-            /* cannot be lower, degrade */
-            DEBUG_ASSERT(vDgdE.empty());
-            iCurK--;
-            DEBUG_PRINTF("DEBUG ------k: %d\n",
-                         iCurK);
-            /* find maximum layer */
-            for (itE = lsCurLayer.begin(); itE != lsCurLayer.end(); ++itE)
-            {
-                pstNode = mpG.findNode(*itE);
-                DEBUG_ASSERT(NULL != pstNode);
-
-                vector<int> vLfE;
-                vector<int> vRtE;
-                mpG.findNeb(pstNode->eid, vLfE, vRtE);
-
-                itLfE = vLfE.begin();
-                itRtE = vRtE.begin();
-                for (; itLfE != vLfE.end(); ++itLfE, ++itRtE)
-                {
-                    pstLfNode = mpG.findNode(*itLfE);
-                    DEBUG_ASSERT(NULL != pstLfNode);
-                    pstRtNode = mpG.findNode(*itRtE);
-                    DEBUG_ASSERT(NULL != pstRtNode);
-
-                    DEBUG_PRINTF("DEBUG find: (%d, %d) (%d, %d) k: %d %d layer: %d %d seSup: %d %d eid: %d %d bool: %d %d self: (%d, %d) layer: %d\n",
-                                 pstLfNode->paXY.first, pstLfNode->paXY.second,
-                                 pstRtNode->paXY.first, pstRtNode->paXY.second,
-                                 pstLfNode->iTrussness, pstRtNode->iTrussness,
-                                 pstLfNode->iLayer, pstRtNode->iLayer,
-                                 pstLfNode->iSeSup, pstRtNode->iSeSup,
-                                 pstLfNode->eid, pstRtNode->eid,
-                                 pstLfNode->bCanQFlag, pstRtNode->bCanQFlag,
-                                 pstNode->paXY.first, pstNode->paXY.second,
-                                 pstNode->iLayer);
-
-                    iMinT = COMMON_MIN(pstLfNode->iTrussness, pstRtNode->iTrussness);
-                    /* decrease first layer SeSup */
-                    if (iMinT == iCurK + 1)
-                    {
-                        iLfLayer = (pstLfNode->iTrussness > iMinT)?pstNode->iLayer + 1:pstLfNode->iLayer;
-                        iLfLayer = (pstLfNode->bCanQFlag)?0:iLfLayer;
-                        iRtLayer = (pstRtNode->iTrussness > iMinT)?pstNode->iLayer + 1:pstRtNode->iLayer;
-                        iRtLayer = (pstRtNode->bCanQFlag)?0:iRtLayer;
-                        iNewLayer = COMMON_MIN(iLfLayer, iRtLayer);
-
-                        DEBUG_PRINTF("DEBUG layer: %d left: %d right: %d\n",
-                                     iNewLayer, iLfLayer, iRtLayer);
-                        if (1 == iNewLayer)
-                        {
-                            if (1 == iLfLayer)
-                            {
-                                pstLfNode->iSeSup--;
-                                DEBUG_PRINTF("DEBUG decrease back: (%d, %d) k: %d layer: %d seSup: %d\n",
-                                             pstLfNode->paXY.first, pstLfNode->paXY.second,
-                                             pstLfNode->iTrussness, pstLfNode->iLayer,
-                                             pstLfNode->iSeSup);
-                            }
-                            if (1 == iRtLayer)
-                            {
-                                pstRtNode->iSeSup--;
-                                DEBUG_PRINTF("DEBUG decrease back: (%d, %d) k: %d layer: %d seSup: %d\n",
-                                             pstLfNode->paXY.first, pstLfNode->paXY.second,
-                                             pstLfNode->iTrussness, pstLfNode->iLayer,
-                                             pstLfNode->iSeSup);
-                            }
-                        }
-                        else if (0 == iNewLayer)
-                        {
-                            if ((0 == iLfLayer) &&
-                                (pstNode->eid < pstLfNode->eid) &&
-                                (1 == iRtLayer))
-                            {
-                                pstRtNode->iSeSup--;
-                                DEBUG_PRINTF("DEBUG decrease back: (%d, %d) k: %d layer: %d seSup: %d\n",
-                                             pstLfNode->paXY.first, pstLfNode->paXY.second,
-                                             pstLfNode->iTrussness, pstLfNode->iLayer,
-                                             pstLfNode->iSeSup);
-                            }
-                            if ((0 == iRtLayer) &&
-                                (pstNode->eid < pstRtNode->eid) &&
-                                (1 == iLfLayer))
-                            {
-                                pstLfNode->iSeSup--;
-                                DEBUG_PRINTF("DEBUG decrease back: (%d, %d) k: %d layer: %d seSup: %d\n",
-                                             pstLfNode->paXY.first, pstLfNode->paXY.second,
-                                             pstLfNode->iTrussness, pstLfNode->iLayer,
-                                             pstLfNode->iSeSup);
-                            }
-                        }
-                        continue;
-                    }
-                    else if (iMinT != iCurK)
-                    {
-                        /* not meet, ignore */
-                        continue;
-                    }
-
-                    iNewLayer = COMMON_TRG_MIN(pstNode->iLayer,
-                                    pstLfNode->iLayer,
-                                    (pstLfNode->iTrussness > iCurK),
-                                    pstRtNode->iLayer,
-                                    (pstRtNode->iTrussness > iCurK));
-
-                    if (iNewLayer > iCurMaxLayer)
-                    {
-                        iCurMaxLayer = iNewLayer;
-                    }
-                }
-            }
-
-            /* set value */
-            ++iCurMaxLayer;
-            iCurLayer = iCurMaxLayer;
-            for (itE = lsCurLayer.begin(); itE != lsCurLayer.end(); ++itE)
-            {
-                pstNode = mpG.findNode(*itE);
-                DEBUG_ASSERT(NULL != pstNode);
-                /* set value */
-                pstNode->bCanQFlag = false;
-                pstNode->iTrussness = iCurK;
-                /* maximum */
-                pstNode->iLayer = iCurLayer;
-
-                vDgdE.push_back(pstNode->eid);
-
-                res = checkRmCdt(mpG, pstNode->eid);
-                if (!res)
-                {
-                    /* seed in k-1 */
-                    vDgdSeed.push_back(pstNode->eid);
-                }
-
-                /* handle upgrade case */
-                if (pstNode->iSeSup + 2 > iCurK)
-                {
-                    vUgdSeed.push_back(pstNode->eid);
-                }
-                DEBUG_PRINTF("DEGRADE set: (%d, %d) k: %d layer: %d seSup: %d\n",
-                             pstNode->paXY.first, pstNode->paXY.second,
-                             pstNode->iTrussness, pstNode->iLayer,
-                             pstNode->iSeSup);
-            }
-            break;
-        }
-        else
-        {
-            for (itE = lsCurLayer.begin(); itE != lsCurLayer.end(); )
-            {
-                pstNode = mpG.findNode(*itE);
-                DEBUG_ASSERT(NULL != pstNode);
-
-                DEBUG_PRINTF("DEBUG ------queue: (%d, %d) k: %d layer: %d seSup: %d\n",
-                             pstNode->paXY.first, pstNode->paXY.second,
-                             pstNode->iTrussness, pstNode->iLayer,
-                             pstNode->iSeSup);
-                DEBUG_ASSERT(iCurLayer == pstNode->iLayer);
-                pstNode->iLayer--;
-                pstNode->bCanQFlag = false;
-
-                iHighLCnt = 0;
-                iSameLCnt = 0;
-
-                vector<int> vLfE;
-                vector<int> vRtE;
-                mpG.findNeb(pstNode->eid, vLfE, vRtE);
-
-                itLfE = vLfE.begin();
-                itRtE = vRtE.begin();
-                for (; itLfE != vLfE.end(); ++itLfE, ++itRtE)
-                {
-                    pstLfNode = mpG.findNode(*itLfE);
-                    DEBUG_ASSERT(NULL != pstLfNode);
-                    pstRtNode = mpG.findNode(*itRtE);
-                    DEBUG_ASSERT(NULL != pstRtNode);
-
-                    bLfCheckFlag = false;
-                    bRtCheckFlag = false;
-
-                    DEBUG_PRINTF("DEBUG visit: (%d, %d) (%d, %d) k: %d %d layer: %d %d seSup: %d %d eid: %d %d self: (%d, %d) layer: %d\n",
-                                 pstLfNode->paXY.first, pstLfNode->paXY.second,
-                                 pstRtNode->paXY.first, pstRtNode->paXY.second,
-                                 pstLfNode->iTrussness, pstRtNode->iTrussness,
-                                 pstLfNode->iLayer, pstRtNode->iLayer,
-                                 pstLfNode->iSeSup, pstRtNode->iSeSup,
-                                 pstLfNode->eid, pstRtNode->eid,
-                                 pstNode->paXY.first, pstNode->paXY.second,
-                                 pstNode->iLayer);
-
-                    iMinT = COMMON_MIN(pstLfNode->iTrussness, pstRtNode->iTrussness);
-                    if (iMinT > iCurK)
-                    {
-                        /* not meet, ignore */
-                        ++iHighLCnt;
-                        continue;
-                    }
-                    else if (iMinT < iCurK)
-                    {
-                        /* not meet, ignore */
-                        continue;
-                    }
-                    iLfLayer = pstLfNode->iLayer;
-                    iRtLayer = pstRtNode->iLayer;
-                    /* visited Queue check */
-                    iNewLayer = COMMON_TRG_MIN(pstNode->iLayer + 1,
-                                    iLfLayer,
-                                    (pstLfNode->iTrussness > iCurK),
-                                    iRtLayer,
-                                    (pstRtNode->iTrussness > iCurK));
-                    if (1 > iNewLayer)
-                    {
-                        /* no change */
-                        continue;
-                    }
-                    else if (iNewLayer > pstNode->iLayer + 1)
-                    {
-                        ++iHighLCnt;
-                        if ((pstLfNode->iTrussness == iCurK) &&
-                            (pstLfNode->iLayer == pstNode->iLayer + 2) &&
-                            (!pstLfNode->bCanQFlag))
-                        {
-                            bLfCheckFlag = true;
-                        }
-                        if ((pstRtNode->iTrussness == iCurK) &&
-                            (pstRtNode->iLayer == pstNode->iLayer + 2) &&
-                            (!pstRtNode->bCanQFlag))
-                        {
-                            bRtCheckFlag = true;
-                        }
-                    }
-                    else if (iNewLayer == pstNode->iLayer + 1)
-                    {
-                        ++iHighLCnt;
-                        /* should decrease others SeSup */
-                        if (pstLfNode->iTrussness == iCurK)
-                        {
-                            if (pstLfNode->iLayer == iNewLayer)
-                            {
-                                pstLfNode->iSeSup--;
-                                DEBUG_PRINTF("BFS decrease left: (%d, %d) k: %d layer: %d seSup: %d\n",
-                                             pstLfNode->paXY.first, pstLfNode->paXY.second,
-                                             pstLfNode->iTrussness, pstLfNode->iLayer,
-                                             pstLfNode->iSeSup);
-                                if (!pstLfNode->bCanQFlag)
-                                {
-                                    bLfCheckFlag = true;
-                                }
-                            }
-                            else if (pstLfNode->iLayer == iNewLayer + 1)
-                            {
-                                if (!pstLfNode->bCanQFlag)
-                                {
-                                    bLfCheckFlag = true;
-                                }
-                            }
-                        }
-                        if (pstRtNode->iTrussness == iCurK)
-                        {
-                            if (pstRtNode->iLayer == iNewLayer)
-                            {
-                                pstRtNode->iSeSup--;
-                                DEBUG_PRINTF("BFS decrease right: (%d, %d) k: %d layer: %d seSup: %d\n",
-                                             pstRtNode->paXY.first, pstRtNode->paXY.second,
-                                             pstRtNode->iTrussness, pstRtNode->iLayer,
-                                             pstRtNode->iSeSup);
-                                if (!pstRtNode->bCanQFlag)
-                                {
-                                    bRtCheckFlag = true;
-                                }
-                            }
-                            else if (pstRtNode->iLayer == iNewLayer + 1)
-                            {
-                                if (!pstRtNode->bCanQFlag)
-                                {
-                                    bRtCheckFlag = true;
-                                }
-                            }
-                        }
-                    }
-                    else if (iNewLayer == pstNode->iLayer)
-                    {
-                        /* should decrease own SeSup */
-                        ++iSameLCnt;
-                        pstNode->iSeSup++;
-                        DEBUG_PRINTF("BFS increase: (%d, %d) k: %d layer: %d seSup: %d\n",
-                                     pstNode->paXY.first, pstNode->paXY.second,
-                                     pstNode->iTrussness, pstNode->iLayer,
-                                     pstNode->iSeSup);
-                    }
-
-                    if (bLfCheckFlag)
-                    {
-                        res = checkRmCdt(mpG, pstLfNode->eid);
-                        if (!res)
-                        {
-                            if (pstNode->iLayer + 1 == pstLfNode->iLayer)
-                            {
-                                lsCurLayer.push_back(pstLfNode->eid);
-                                pstLfNode->bCanQFlag = true;
-                            }
-                            else if (pstNode->iLayer + 2 == pstLfNode->iLayer)
-                            {
-                                DEBUG_ASSERT(!pstLfNode->bCanQFlag);
-                                DEBUG_ASSERT(!pstLfNode->bUsedCanFlag);
-                                myCanQ.insetByOrder(pstLfNode->iLayer, pstLfNode->eid);
-                                pstLfNode->bCanQFlag = true;
-                                pstLfNode->bUsedCanFlag = true;
-                            }
-                            else
-                            {
-                                DEBUG_ASSERT(0);
-                            }
-                        }
-                    }
-                    if (bRtCheckFlag)
-                    {
-                        res = checkRmCdt(mpG, pstRtNode->eid);
-                        if (!res)
-                        {
-                            if (pstNode->iLayer + 1 == pstRtNode->iLayer)
-                            {
-                                lsCurLayer.push_back(pstRtNode->eid);
-                                pstRtNode->bCanQFlag = true;
-                            }
-                            else if (pstNode->iLayer + 2 == pstRtNode->iLayer)
-                            {
-                                DEBUG_ASSERT(!pstRtNode->bCanQFlag);
-                                DEBUG_ASSERT(!pstRtNode->bUsedCanFlag);
-                                myCanQ.insetByOrder(pstRtNode->iLayer, pstRtNode->eid);
-                                pstRtNode->bCanQFlag = true;
-                                pstRtNode->bUsedCanFlag = true;
-                            }
-                            else
-                            {
-                                DEBUG_ASSERT(0);
-                            }
-                        }
-                    }
-                }
-
-                if (pstNode->iSeSup != iHighLCnt + iSameLCnt)
-                {
-                    DEBUG_PRINTF("ERROR get: (%d, %d) k: %d layer: %d seSup: %d high: %d same: %d\n",
-                                 pstNode->paXY.first, pstNode->paXY.second,
-                                 pstNode->iTrussness, pstNode->iLayer,
-                                 pstNode->iSeSup, iHighLCnt, iSameLCnt);
-                    DEBUG_ASSERT(0);
-                }
-
-                res = checkRmCdt(mpG, pstNode->eid);
-                if (res)
-                {
-                    /* should be removed, set layer back */
-                    pstNode->bCanQFlag = false;
-                    lsCurLayer.erase(itE++);
-                    DEBUG_PRINTF("BFS erase: (%d, %d) k: %d layer: %d seSup: %d\n",
-                                 pstNode->paXY.first, pstNode->paXY.second,
-                                 pstNode->iTrussness, pstNode->iLayer,
-                                 pstNode->iSeSup);
-                    /* special case */
-                    DEBUG_ASSERT(0 < pstNode->iLayer);
-                    continue;
-                }
-                else
-                {
-                    pstNode->bCanQFlag = true;
-                }
-                ++itE;
-            }
-
-        }
-
-        iCurLayer--;
-    }
-
-    /* restore */
-    for (itvE = vVisit.begin(); itvE != vVisit.end(); ++itvE)
-    {
-        pstNode = mpG.findNode(*itvE);
-        DEBUG_ASSERT(NULL != pstNode);
-
-        DEBUG_PRINTF("RESTORE (%d, %d) k: %d layer: %d\n",
-                     pstNode->paXY.first, pstNode->paXY.second,
-                     pstNode->iTrussness, pstNode->iLayer);
-        pstNode->bVstFlag = false;
-        pstNode->bDgdFlag = false;
-        DEBUG_ASSERT(!pstNode->bCanQFlag);
-        DEBUG_ASSERT(!pstNode->bUsedCanFlag);
-    }
-
-    /* handle second case */
-    if (!vUgdSeed.empty())
-    {
-        lcDecomp(mpG, iCurK, iCurMaxLayer, vUgdSeed);
-    }
-    DEBUG_PRINTF("DEBUG end BFS\n");
-    return 0;
-}
-
-/*****************
-input:
-        int iType
-description:
-        upgrade and save trussness
-******************/
-int delPart::degradeForAllK(myG &mpG, vector <int> &vCdtE)
-{
-    list<int>::iterator itE;
-    vector <int>::iterator itvE;
-    /* k, eid */
-    map<int, vector <int> > mpKLevel;
-    map<int, vector <int> >::iterator itmpNode;
-    /* eid, none */
-    TPST_MAP_BY_EID* pstNode = NULL;
-	struct timeval tv;
-	long lStartTime = 0;
-	long lCurTime = 0;
-    vector <int> vUpd;
-    vector <int> vSeed;
-    int iCurK = 0;
-    vector <int> vCurDgd;
-    vector <int> vDgdSeed;
-    int iSeSup = 0;
-
-    for (itvE = vCdtE.begin(); itvE != vCdtE.end(); ++itvE)
-    {
-        pstNode = mpG.findNode(*itvE);
-        DEBUG_ASSERT(NULL != pstNode);
-        DEBUG_PRINTF("SEED k: %d (%d, %d)\n",
-               pstNode->iTrussness, pstNode->paXY.first, pstNode->paXY.second);
-        mpKLevel[pstNode->iTrussness].push_back(*itvE);
-    }
-
-    /* 3 -> kmax avoid repeat */
-    for (itmpNode = mpKLevel.begin(); itmpNode != mpKLevel.end(); ++itmpNode)
-    {
-        iCurK = itmpNode->first;
-
-        DEBUG_PRINTF("DEGRADE k: %d\n",
-               iCurK);
-        DEBUG_ASSERT(vCurDgd.empty());
-        DEBUG_ASSERT(vDgdSeed.empty());
-        deKByBFSEasy(mpG, iCurK, itmpNode->second, vCurDgd, vDgdSeed);
-        vUpd.insert(vUpd.end(), vCurDgd.begin(), vCurDgd.end());
-        vCurDgd.clear();
-        if (!vDgdSeed.empty())
-        {
-            /* maintain layer */
-            vSeed.swap(vDgdSeed);
-            deKByBFSEasy(mpG, iCurK - 1, vSeed, vCurDgd, vDgdSeed);
-            DEBUG_ASSERT(vCurDgd.empty());
-        }
-        vSeed.clear();
-    }
-
-    /* restore */
-    for (itvE = vUpd.begin(); itvE != vUpd.end(); ++itvE)
-    {
-        pstNode = mpG.findNode(*itvE);
-        debug_assert(NULL != pstNode);
-        pstNode->bDgdFlag = false;
-
-        //mpG.checkSeSup(pstNode->eid);
-    }
-
-    printf("DEBUG BFS total: %ld degraded: %ld\n",
-           g_lBFSCnt, g_lDeCnt);
-    return 0;
-}
-#endif
+long g_lReCalCnt;
+long g_lNeibInitCnt;
+long g_lLInitCnt;
+long g_lLReuseCnt;
 /*****************
 input:
         int iType
@@ -1072,18 +42,17 @@ int delPart::updateK(myG &mpG, vector <int> &vCdtE, vector <int> &vChgKE)
     TPST_MAP_BY_EID* pstNode = NULL;
     TPST_MAP_BY_EID* pstLf = NULL;
     TPST_MAP_BY_EID* pstRt = NULL;
-    vector<int>::iterator itLfE;
-    vector<int>::iterator itRtE;
+    vector<uint32_t>::iterator itLfE;
+    vector<uint32_t>::iterator itRtE;
+    DEBUG_ASSERT(vChgKE.empty());
     /* k, eid */
-    map<int, vector<int> > mpOrder;
+    /*map<int, vector<int> > mpOrder;
     map<int, vector<int> >::reverse_iterator ritE;
 
-    DEBUG_ASSERT(vChgKE.empty());
     for (int iEid : vCdtE)
     {
         pstNode = mpG.findNode(iEid);
         DEBUG_ASSERT(NULL != pstNode);
-        DEBUG_ASSERT(pstNode->bInit);
         if (pstNode->iKSup + 2 < pstNode->iTrussness)
         {
             mpOrder[pstNode->iTrussness].push_back(iEid);
@@ -1091,12 +60,32 @@ int delPart::updateK(myG &mpG, vector <int> &vCdtE, vector <int> &vChgKE)
         }
         else
         {
+            printf("ERROR get (%d, %d) k: %d L: %d Sup: %d %d %d\n",
+                   pstNode->paXY.first, pstNode->paXY.second,
+                   pstNode->iTrussness, pstNode->iLayer,
+                   pstNode->iSeSup, pstNode->iKSup, pstNode->iKMSup);
             DEBUG_ASSERT(0);
         }
     }
     for (ritE = mpOrder.rbegin(); ritE != mpOrder.rend(); ++ritE)
     {
         vStack.insert(vStack.end(), ritE->second.begin(), ritE->second.end());
+    }*/
+    vStack = vCdtE;
+    // decreasing order
+    //printf("DEBUG start sort\n");
+    vector<TPST_MAP_BY_EID> * pvEInfo = mpG.m_pvG;
+    sort(vStack.begin(), vStack.end(),
+            [pvEInfo](const int& e1, const int& e2) {
+            return (*(pvEInfo))[e1].iTrussness > (*(pvEInfo))[e2].iTrussness;
+            });
+    //printf("DEBUG end sort\n");
+    for (int iEid : vStack)
+    {
+        pstNode = mpG.findNode(iEid);
+        pstNode->bCanQFlag = true;
+
+        //printf("DEBUG after sort k: %d\n", pstNode->iTrussness);
     }
     while (!vStack.empty())
     {
@@ -1106,30 +95,30 @@ int delPart::updateK(myG &mpG, vector <int> &vCdtE, vector <int> &vChgKE)
         pstNode = mpG.findNode(iCurEid);
         DEBUG_ASSERT(NULL != pstNode);
         DEBUG_ASSERT(pstNode->iKSup + 2 < pstNode->iTrussness);
-        DEBUG_ASSERT(pstNode->bInit);
+        /*if (!pstNode->bInit)
+        {
+            mpG.init(pstNode->eid);
+        }*/
         pstNode->bCanQFlag = false;
 
-        vector<int> vLfE;
-        vector<int> vRtE;
-        mpG.findNeb(pstNode->eid, vLfE, vRtE);
-
-        itLfE = vLfE.begin();
-        itRtE = vRtE.begin();
-        for (; itLfE != vLfE.end(); ++itLfE, ++itRtE)
+        itLfE = pstNode->vLfE.begin();
+        itRtE = pstNode->vRtE.begin();
+        for (; itLfE != pstNode->vLfE.end(); ++itLfE, ++itRtE)
         {
             pstLf = mpG.findNode(*itLfE);
             DEBUG_ASSERT(NULL != pstLf);
             pstRt = mpG.findNode(*itRtE);
             DEBUG_ASSERT(NULL != pstRt);
 
-            if (!pstLf->bInit)
-            {
-                mpG.init(pstLf->eid);
-            }
-            if (!pstRt->bInit)
-            {
-                mpG.init(pstRt->eid);
-            }
+            /*DEBUG_PRINTF("UPDATE_K (%d, %d) (%d, %d) k: %d %d layer: %d %d left Sup: %d %d %d right Sup: %d %d %d self: (%d, %d) %d %d %d \n",
+                         pstLf->paXY.first, pstLf->paXY.second,
+                         pstRt->paXY.first, pstRt->paXY.second,
+                         pstLf->iTrussness, pstRt->iTrussness,
+                         pstLf->iLayer, pstRt->iLayer,
+                         pstLf->iSeSup, pstLf->iKSup, pstLf->iKMSup,
+                         pstRt->iSeSup, pstRt->iKSup, pstRt->iKMSup,
+                         pstNode->paXY.first, pstNode->paXY.second,
+                         pstNode->iTrussness, pstNode->iLayer, pstNode->iKSup);*/
 
             int iMinT = COMMON_MIN(pstLf->iTrussness, pstRt->iTrussness);
             iMinT = COMMON_MIN(iMinT, pstNode->iTrussness);
@@ -1139,6 +128,10 @@ int delPart::updateK(myG &mpG, vector <int> &vCdtE, vector <int> &vChgKE)
                 /* triangle will decrease 1 */
                 if (iMinT == pstLf->iTrussness)
                 {
+                    /*if (!pstLf->bInit)
+                    {
+                        mpG.init(pstLf->eid);
+                    }*/
                     pstLf->iKSup--;
                     if (!pstLf->bCanQFlag)
                     {
@@ -1151,6 +144,10 @@ int delPart::updateK(myG &mpG, vector <int> &vCdtE, vector <int> &vChgKE)
                 }
                 if (iMinT == pstRt->iTrussness)
                 {
+                    /*if (!pstRt->bInit)
+                    {
+                        mpG.init(pstRt->eid);
+                    }*/
                     pstRt->iKSup--;
                     if (!pstRt->bCanQFlag)
                     {
@@ -1176,6 +173,10 @@ int delPart::updateK(myG &mpG, vector <int> &vCdtE, vector <int> &vChgKE)
 
         /* decrease self */
         pstNode->iTrussness--;
+        /*DEBUG_PRINTF("UPDATE_K decrease (%d, %d) k: %d oldL: %d kSup: %d \n",
+                     pstNode->paXY.first, pstNode->paXY.second,
+                     pstNode->iTrussness, pstNode->iLayer, pstNode->iKSup);*/
+        ++g_lDeCnt;
         pstNode->iOldL = pstNode->iLayer;
         pstNode->iLayer = INT_MAX;
         pstNode->iSeSup = 0;
@@ -1200,36 +201,32 @@ int delPart::updNeibL(myG &mpG, int iEid, vector <int> &vCdtChgLE)
     TPST_MAP_BY_EID* pstNode = NULL;
     TPST_MAP_BY_EID* pstLf = NULL;
     TPST_MAP_BY_EID* pstRt = NULL;
-    vector<int> vLfE;
-    vector<int> vRtE;
-    vector<int>::iterator itLfE;
-    vector<int>::iterator itRtE;
+    vector<uint32_t>::iterator itLfE;
+    vector<uint32_t>::iterator itRtE;
 
     pstNode = mpG.findNode(iEid);
     DEBUG_ASSERT(NULL != pstNode);
+    //DEBUG_ASSERT(pstNode->bInit);
+    DEBUG_ASSERT(pstNode->bLInit);
 
-    mpG.findNeb(pstNode->eid, vLfE, vRtE);
-
-    itLfE = vLfE.begin();
-    itRtE = vRtE.begin();
-    for (; itLfE != vLfE.end(); ++itLfE, ++itRtE)
+    itLfE = pstNode->vKLfE.begin();
+    itRtE = pstNode->vKRtE.begin();
+    for (; itLfE != pstNode->vKLfE.end(); ++itLfE, ++itRtE)
     {
         pstLf = mpG.findNode(*itLfE);
         DEBUG_ASSERT(NULL != pstLf);
         pstRt = mpG.findNode(*itRtE);
         DEBUG_ASSERT(NULL != pstRt);
-        DEBUG_ASSERT(pstLf->bInit);
-        DEBUG_ASSERT(pstRt->bInit);
 
-        /*DEBUG_PRINTF("UPDATE_L (%d, %d) k: %d L: %d oldL: %d QFlag: %d left: (%d, %d) k: %d L: %d seSup: %d, kSup: %d kMSup: %d QFlag: %d right: (%d, %d) k: %d L: %d seSup: %d, kSup: %d kMSup: %d QFlag: %d\n",
-                         pstNode->paXY.first, pstNode->paXY.second,
-                         pstNode->iTrussness, pstNode->iLayer, pstNode->iOldL, pstNode->bCanQFlag,
-                         pstLf->paXY.first, pstLf->paXY.second,
-                         pstLf->iTrussness, pstLf->iLayer, pstLf->iSeSup,
-                         pstLf->iKSup, pstLf->iKMSup, pstLf->bCanQFlag,
-                         pstRt->paXY.first, pstRt->paXY.second,
-                         pstRt->iTrussness, pstRt->iLayer, pstRt->iSeSup,
-                         pstRt->iKSup, pstRt->iKMSup, pstRt->bCanQFlag);*/
+        /*DEBUG_PRINTF("UPDATE_L (%d, %d) (%d, %d) k: %d %d layer: %d %d seSup: %d %d self: (%d, %d) k: %d layer: %d Sup: %d %d %d\n",
+                     pstLf->paXY.first, pstLf->paXY.second,
+                     pstRt->paXY.first, pstRt->paXY.second,
+                     pstLf->iTrussness, pstRt->iTrussness,
+                     pstLf->iLayer, pstRt->iLayer,
+                     pstLf->iSeSup, pstRt->iSeSup,
+                     pstNode->paXY.first, pstNode->paXY.second,
+                     pstNode->iTrussness, pstNode->iLayer,
+                     pstNode->iSeSup, pstNode->iKSup, pstNode->iKMSup);*/
 
         int iMinT = COMMON_MIN(pstLf->iTrussness, pstRt->iTrussness);
         if (iMinT == pstNode->iTrussness)
@@ -1243,125 +240,6 @@ int delPart::updNeibL(myG &mpG, int iEid, vector <int> &vCdtChgLE)
             {
                 iMinL = COMMON_MIN(iMinL, pstRt->iLayer);
             }
-#if 0
-            /* case: one edge in queue */
-            if ((pstLf->bCanQFlag && (iMinT == pstLf->iTrussness)) && (!pstRt->bCanQFlag))
-            {
-                /* seSup */
-                int iOldMinL = pstNode->iOldL;
-                iOldMinL = COMMON_MIN(iOldMinL, pstLf->iOldL);
-                int iNewMinL = pstNode->iLayer;
-                iNewMinL = COMMON_MIN(iNewMinL, pstLf->iLayer);
-                if ((iOldMinL >= pstRt->iLayer) && (iNewMinL < pstRt->iLayer))
-                {
-                    pstRt->iSeSup--;
-                }
-                /* KMSup */
-                if ((iOldMinL >= pstRt->iLayer - 1) && (iNewMinL < pstRt->iLayer - 1))
-                {
-                    pstRt->iKMSup--;
-                    if ((pstRt->iKMSup + 2 <= pstRt->iTrussness) && (!pstRt->bCanQFlag))
-                    {
-                        vCdtChgLE.push_back(pstRt->eid);
-                        pstRt->bCanQFlag = true;
-                    }
-                }
-            }
-            else if ((pstRt->bCanQFlag && (iMinT == pstRt->iTrussness))&& (!pstLf->bCanQFlag))
-            {
-                /* seSup */
-                int iOldMinL = pstNode->iOldL;
-                iOldMinL = COMMON_MIN(iOldMinL, pstRt->iOldL);
-                int iNewMinL = pstNode->iLayer;
-                iNewMinL = COMMON_MIN(iNewMinL, pstRt->iLayer);
-                if ((iOldMinL >= pstLf->iLayer) && (iNewMinL < pstLf->iLayer))
-                {
-                    pstLf->iSeSup--;
-                }
-                /* KMSup */
-                if ((iOldMinL >= pstLf->iLayer - 1) && (iNewMinL < pstLf->iLayer - 1))
-                {
-                    pstLf->iKMSup--;
-                    if ((pstLf->iKMSup + 2 <= pstLf->iTrussness) && (!pstLf->bCanQFlag))
-                    {
-                        vCdtChgLE.push_back(pstLf->eid);
-                        pstLf->bCanQFlag = true;
-                    }
-                }
-            }
-            else if ((pstLf->bCanQFlag && (iMinT == pstLf->iTrussness)) &&
-                     (pstRt->bCanQFlag && (iMinT == pstRt->iTrussness)))
-            {
-                continue;
-            }
-            else
-            {
-                /* seSup */
-                if ((iMinL <= pstNode->iOldL) && (iMinL > pstNode->iLayer))
-                {
-                    if ((iMinT == pstLf->iTrussness) && (iMinL == pstLf->iLayer))
-                    {
-                        pstLf->iSeSup--;
-                    }
-                    if ((iMinT == pstRt->iTrussness) && (iMinL == pstRt->iLayer))
-                    {
-                        pstRt->iSeSup--;
-                    }
-                }
-                /* KMSup */
-                if ((iMinL <= pstNode->iOldL + 1) && (iMinL > pstNode->iLayer))
-                {
-                    if (iMinT == pstLf->iTrussness)
-                    {
-                        if (iMinL == pstLf->iLayer - 1)
-                        {
-                            pstLf->iKMSup--;
-                            if ((pstLf->iKMSup + 2 <= pstLf->iTrussness) && (!pstLf->bCanQFlag))
-                            {
-                                vCdtChgLE.push_back(pstLf->eid);
-                                pstLf->bCanQFlag = true;
-                            }
-                        }
-                        else if (iMinL == pstLf->iLayer)
-                        {
-                            if (pstNode->iLayer < pstLf->iLayer - 1)
-                            {
-                                pstLf->iKMSup--;
-                                if ((pstLf->iKMSup + 2 <= pstLf->iTrussness) && (!pstLf->bCanQFlag))
-                                {
-                                    vCdtChgLE.push_back(pstLf->eid);
-                                    pstLf->bCanQFlag = true;
-                                }
-                            }
-                        }
-                    }
-                    if (iMinT == pstRt->iTrussness)
-                    {
-                        if (iMinL == pstRt->iLayer - 1)
-                        {
-                            pstRt->iKMSup--;
-                            if ((pstRt->iKMSup + 2 <= pstRt->iTrussness) && (!pstRt->bCanQFlag))
-                            {
-                                vCdtChgLE.push_back(pstRt->eid);
-                                pstRt->bCanQFlag = true;
-                            }
-                        }
-                        else if (iMinL == pstRt->iLayer)
-                        {
-                            if (pstNode->iLayer < pstRt->iLayer - 1)
-                            {
-                                pstRt->iKMSup--;
-                                if ((pstRt->iKMSup + 2 <= pstRt->iTrussness) && (!pstRt->bCanQFlag))
-                                {
-                                    vCdtChgLE.push_back(pstRt->eid);
-                                    pstRt->bCanQFlag = true;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-#endif
             /* seSup */
             if ((iMinL <= pstNode->iOldL) && (iMinL > pstNode->iLayer))
             {
@@ -1381,6 +259,15 @@ int delPart::updNeibL(myG &mpG, int iEid, vector <int> &vCdtChgLE)
             {
                 if ((pstLf->iLayer <= iOldTriMinL + 1) && (pstLf->iLayer > iNewTriMinL + 1))
                 {
+                    /*if (!pstLf->bInit)
+                    {
+                        ++g_lNeibInitCnt;
+                        mpG.init(pstLf->eid);
+                    }
+                    else
+                    {
+                        pstLf->iKMSup--;
+                    }*/
                     pstLf->iKMSup--;
                     if ((pstLf->iKMSup + 2 <= pstLf->iTrussness) && (!pstLf->bCanQFlag))
                     {
@@ -1393,6 +280,15 @@ int delPart::updNeibL(myG &mpG, int iEid, vector <int> &vCdtChgLE)
             {
                 if ((pstRt->iLayer <= iOldTriMinL + 1) && (pstRt->iLayer > iNewTriMinL + 1))
                 {
+                    /*if (!pstRt->bInit)
+                    {
+                        ++g_lNeibInitCnt;
+                        mpG.init(pstRt->eid);
+                    }
+                    else
+                    {
+                        pstRt->iKMSup--;
+                    }*/
                     pstRt->iKMSup--;
                     if ((pstRt->iKMSup + 2 <= pstRt->iTrussness) && (!pstRt->bCanQFlag))
                     {
@@ -1423,100 +319,153 @@ description:
 ******************/
 int delPart::recalL(myG &mpG, int iEid)
 {
-    TPST_MAP_BY_EID* pstNode = NULL;
-    TPST_MAP_BY_EID* pstLf = NULL;
-    TPST_MAP_BY_EID* pstRt = NULL;
-    vector<int>::iterator itLfE;
-    vector<int>::iterator itRtE;
+    TPST_MAP_BY_EID* pstNode = mpG.findNode(iEid);
+    //DEBUG_ASSERT(NULL != pstNode);
+    /*if (!pstNode->bInit)
+    {
+        mpG.init(pstNode->eid);
+    }*/
 
-    pstNode = mpG.findNode(iEid);
-    DEBUG_ASSERT(NULL != pstNode);
+    ++g_lReCalCnt;
+
+    if (!pstNode->bLInit)
+    {
+        ++g_lLInitCnt;
+        /*DEBUG_PRINTF("CAL_L (%d, %d) new initL k: %d\n",
+                             pstNode->paXY.first, pstNode->paXY.second, pstNode->iTrussness);*/
+        pstNode->bLInit = true;
+        int iKPSup = 0;
+        int iNeibMaxL = 0;
+        int iKNeibCnt = 0;
+        //pstNode->vKLfE.reserve(pstNode->vLfE.size());
+        //pstNode->vKRtE.reserve(pstNode->vRtE.size());
+
+        vector<uint32_t>::iterator itLfE = pstNode->vLfE.begin();
+        vector<uint32_t>::iterator itRtE = pstNode->vRtE.begin();
+        for (; itLfE != pstNode->vLfE.end(); ++itLfE, ++itRtE)
+        {
+            TPST_MAP_BY_EID* pstLf = mpG.findNode(*itLfE);
+            //DEBUG_ASSERT(NULL != pstLf);
+            TPST_MAP_BY_EID* pstRt = mpG.findNode(*itRtE);
+            //DEBUG_ASSERT(NULL != pstRt);
+
+            /*DEBUG_PRINTF("CAL_L (%d, %d) (%d, %d) k: %d %d layer: %d %d seSup: %d %d self: (%d, %d) k: %d layer: %d Sup: %d %d %d\n",
+                         pstLf->paXY.first, pstLf->paXY.second,
+                         pstRt->paXY.first, pstRt->paXY.second,
+                         pstLf->iTrussness, pstRt->iTrussness,
+                         pstLf->iLayer, pstRt->iLayer,
+                         pstLf->iSeSup, pstRt->iSeSup,
+                         pstNode->paXY.first, pstNode->paXY.second,
+                         pstNode->iTrussness, pstNode->iLayer,
+                         pstNode->iSeSup, pstNode->iKSup, pstNode->iKMSup);*/
+
+            int iMinT = COMMON_MIN(pstLf->iTrussness, pstRt->iTrussness);
+            if (iMinT == pstNode->iTrussness)
+            {
+                /*pstNode->vKLfE.push_back(pstLf->eid);
+                pstNode->vKRtE.push_back(pstRt->eid);*/
+
+                pstNode->vKLfE[iKNeibCnt] = pstLf->eid;
+                pstNode->vKRtE[iKNeibCnt] = pstRt->eid;
+                ++iKNeibCnt;
+
+                int iMinL = INT_MAX;
+                if (iMinT == pstLf->iTrussness)
+                {
+                    iMinL = COMMON_MIN(iMinL, pstLf->iLayer);
+                }
+                if (iMinT == pstRt->iTrussness)
+                {
+                    iMinL = COMMON_MIN(iMinL, pstRt->iLayer);
+                }
+                if (INT_MAX != iMinL)
+                {
+                    iNeibMaxL = COMMON_MAX(iNeibMaxL, iMinL);
+                }
+            }
+            else if (iMinT > pstNode->iTrussness)
+            {
+                ++iKPSup;
+            }
+        }
+        pstNode->iKPSup = iKPSup;
+        pstNode->iNeibMaxL = iNeibMaxL;
+        pstNode->vKLfE.resize(iKNeibCnt);
+        pstNode->vKRtE.resize(iKNeibCnt);
+    }
+    else
+    {
+        ++g_lLReuseCnt;
+    }
+    /*DEBUG_PRINTF("CAL_L (%d, %d) init done iKPSup: %d iNeibMaxL: %d\n",
+                         pstNode->paXY.first, pstNode->paXY.second,
+                         pstNode->iKPSup, pstNode->iNeibMaxL);*/
 
     /* build table */
-    vector<int> vLfE;
-    vector<int> vRtE;
-    mpG.findNeb(pstNode->eid, vLfE, vRtE);
-
     /* estimate L */
     /* L, cnt */
-    map <int, int > mpTriCnt;
-    map <int, int >::reverse_iterator ritC;
-    itLfE = vLfE.begin();
-    itRtE = vRtE.begin();
-    for (; itLfE != vLfE.end(); ++itLfE, ++itRtE)
+    int iMaxL = COMMON_MIN(pstNode->iLayer, pstNode->iNeibMaxL);
+    vector<int> vLCnt(iMaxL + 2, 0);
+    vector<uint32_t>::iterator itLfE = pstNode->vKLfE.begin();
+    vector<uint32_t>::iterator itRtE = pstNode->vKRtE.begin();
+    for (; itLfE != pstNode->vKLfE.end(); ++itLfE, ++itRtE)
     {
-        pstLf = mpG.findNode(*itLfE);
-        DEBUG_ASSERT(NULL != pstLf);
-        pstRt = mpG.findNode(*itRtE);
-        DEBUG_ASSERT(NULL != pstRt);
+        TPST_MAP_BY_EID* pstLf = mpG.findNode(*itLfE);
+        //DEBUG_ASSERT(NULL != pstLf);
+        TPST_MAP_BY_EID* pstRt = mpG.findNode(*itRtE);
+        //DEBUG_ASSERT(NULL != pstRt);
 
-        if (!pstLf->bInit)
+        int iMinL = pstNode->iLayer;
+        if (pstNode->iTrussness == pstLf->iTrussness)
         {
-            mpG.init(pstLf->eid);
+            iMinL = COMMON_MIN(iMinL, pstLf->iLayer);
         }
-        if (!pstRt->bInit)
+        if (pstNode->iTrussness == pstRt->iTrussness)
         {
-            mpG.init(pstRt->eid);
+            iMinL = COMMON_MIN(iMinL, pstRt->iLayer);
         }
 
-        /*DEBUG_PRINTF("CAL_L (%d, %d) k: %d L: %d oldL: %d left: (%d, %d) k: %d L: %d seSup: %d, kSup: %d kMSup: %d QFlag: %d right: (%d, %d) k: %d L: %d seSup: %d, kSup: %d kMSup: %d QFlag: %d\n",
-                         pstNode->paXY.first, pstNode->paXY.second,
-                         pstNode->iTrussness, pstNode->iLayer, pstNode->iOldL,
-                         pstLf->paXY.first, pstLf->paXY.second,
-                         pstLf->iTrussness, pstLf->iLayer, pstLf->iSeSup,
-                         pstLf->iKSup, pstLf->iKMSup, pstLf->bCanQFlag,
-                         pstRt->paXY.first, pstRt->paXY.second,
-                         pstRt->iTrussness, pstRt->iLayer, pstRt->iSeSup,
-                         pstRt->iKSup, pstRt->iKMSup, pstRt->bCanQFlag);*/
-
-        int iMinT = COMMON_MIN(pstLf->iTrussness, pstRt->iTrussness);
-        iMinT = COMMON_MIN(iMinT, pstNode->iTrussness);
-        if (iMinT == pstNode->iTrussness)
+        if (iMinL > iMaxL)
         {
-            int iMinL = pstNode->iLayer;
-            if (iMinT == pstLf->iTrussness)
-            {
-                iMinL = COMMON_MIN(iMinL, pstLf->iLayer);
-            }
-            if (iMinT == pstRt->iTrussness)
-            {
-                iMinL = COMMON_MIN(iMinL, pstRt->iLayer);
-            }
-            if (mpTriCnt.find(iMinL) == mpTriCnt.end())
-            {
-                mpTriCnt[iMinL] = 1;
-            }
-            else
-            {
-                mpTriCnt[iMinL]++;
-            }
+            iMinL = iMaxL + 1;
         }
+
+        vLCnt[iMinL]++;
     }
-    int iTriCnt = 0;
-    for (ritC = mpTriCnt.rbegin(); ritC != mpTriCnt.rend(); ++ritC)
+
+    int iTriCnt = pstNode->iKPSup;
+    int iCurL = iMaxL + 1;
+    for (; iCurL > 0; --iCurL)
     {
-        if (iTriCnt + ritC->second + 2 > pstNode->iTrussness)
+        if (iTriCnt + vLCnt[iCurL] + 2 > pstNode->iTrussness)
         {
             /* find */
-            pstNode->iLayer = ritC->first + 1;
+            pstNode->iLayer = iCurL + 1;
             pstNode->iSeSup = iTriCnt;
-            pstNode->iKMSup = iTriCnt + ritC->second;
+            pstNode->iKMSup = iTriCnt + vLCnt[iCurL];
             break;
         }
-        iTriCnt += ritC->second;
+        iTriCnt += vLCnt[iCurL];
     }
-    if (ritC == mpTriCnt.rend())
+    /*DEBUG_PRINTF("CAL_L (%d, %d) get L: %d sup: %d\n",
+                         pstNode->paXY.first, pstNode->paXY.second,
+                         iCurL, iTriCnt);*/
+    if (0 == iCurL)
     {
         /* not full */
+        iTriCnt += vLCnt[iCurL];
         DEBUG_ASSERT(iTriCnt + 2 == pstNode->iTrussness);
         pstNode->iLayer = 1;
         pstNode->iSeSup = iTriCnt;
         pstNode->iKMSup = iTriCnt;
     }
-
-    /*DEBUG_PRINTF("CAL_L (%d, %d) old: %d new: %d\n",
+    /*DEBUG_PRINTF("CAL_L neigh size: %d k size: %d LMax: %d get L: %d\n",
+                 pstNode->vLfE.size(), pstNode->vKLfE.size(),
+                         iMaxL + 1, pstNode->iLayer);*/
+    /*DEBUG_PRINTF("CAL_L (%d, %d) old: %d new: %d, kMSup: %d SeSup: %d\n",
                          pstNode->paXY.first, pstNode->paXY.second,
-                         pstNode->iOldL, pstNode->iLayer);*/
+                         pstNode->iOldL, pstNode->iLayer, pstNode->iKMSup, pstNode->iSeSup);*/
+
     return 0;
 }
 /*****************
@@ -1527,8 +476,8 @@ description:
 ******************/
 int delPart::recalL(myG &mpG, vector <int> &vChgKE, vector <int> &vCdtChgLE)
 {
-    vector<int>::iterator itLfE;
-    vector<int>::iterator itRtE;
+    vector<uint32_t>::iterator itLfE;
+    vector<uint32_t>::iterator itRtE;
     TPST_MAP_BY_EID* pstNode = NULL;
     TPST_MAP_BY_EID* pstLf = NULL;
     TPST_MAP_BY_EID* pstRt = NULL;
@@ -1546,23 +495,16 @@ int delPart::recalL(myG &mpG, vector <int> &vChgKE, vector <int> &vCdtChgLE)
                      pstNode->bDgdFlag);*/
 
         recalL(mpG, iEid);
-        /* update neighbor */
-        vector<int> vLfE;
-        vector<int> vRtE;
+        //DEBUG_ASSERT(pstNode->bInit);
 
-        mpG.findNeb(pstNode->eid, vLfE, vRtE);
-
-        itLfE = vLfE.begin();
-        itRtE = vRtE.begin();
-        for (; itLfE != vLfE.end(); ++itLfE, ++itRtE)
+        itLfE = pstNode->vLfE.begin();
+        itRtE = pstNode->vRtE.begin();
+        for (; itLfE != pstNode->vLfE.end(); ++itLfE, ++itRtE)
         {
             pstLf = mpG.findNode(*itLfE);
             DEBUG_ASSERT(NULL != pstLf);
             pstRt = mpG.findNode(*itRtE);
             DEBUG_ASSERT(NULL != pstRt);
-
-            DEBUG_ASSERT(pstLf->bInit);
-            DEBUG_ASSERT(pstRt->bInit);
 
             int iMinT = COMMON_MIN(pstLf->iTrussness, pstRt->iTrussness);
             int iMinL = INT_MAX;
@@ -1594,6 +536,10 @@ int delPart::recalL(myG &mpG, vector <int> &vChgKE, vector <int> &vCdtChgLE)
                 {
                     if (iMinL >= pstLf->iLayer - 1)
                     {
+                        /*if (!pstLf->bInit)
+                        {
+                            mpG.init(pstLf->eid);
+                        }*/
                         pstLf->iKMSup--;
                         if (1 == pstLf->iLayer)
                         {
@@ -1613,6 +559,10 @@ int delPart::recalL(myG &mpG, vector <int> &vChgKE, vector <int> &vCdtChgLE)
                 {
                     if (iMinL >= pstRt->iLayer - 1)
                     {
+                        /*if (!pstRt->bInit)
+                        {
+                            mpG.init(pstRt->eid);
+                        }*/
                         pstRt->iKMSup--;
                         if (1 == pstRt->iLayer)
                         {
@@ -1649,6 +599,10 @@ int delPart::recalL(myG &mpG, vector <int> &vChgKE, vector <int> &vCdtChgLE)
                         }
                         if (iTpMinL >= pstLf->iLayer - 1)
                         {
+                            /*if (!pstLf->bInit)
+                            {
+                                mpG.init(pstLf->eid);
+                            }*/
                             pstLf->iKMSup--;
                             if ((pstLf->iKMSup + 2 <= pstLf->iTrussness) && (!pstLf->bCanQFlag))
                             {
@@ -1666,6 +620,10 @@ int delPart::recalL(myG &mpG, vector <int> &vChgKE, vector <int> &vCdtChgLE)
                         }
                         if (iTpMinL >= pstRt->iLayer - 1)
                         {
+                            /*if (!pstRt->bInit)
+                            {
+                                mpG.init(pstRt->eid);
+                            }*/
                             pstRt->iKMSup--;
                             if ((pstRt->iKMSup + 2 <= pstRt->iTrussness) && (!pstRt->bCanQFlag))
                             {
@@ -1696,6 +654,10 @@ int delPart::recalL(myG &mpG, vector <int> &vChgKE, vector <int> &vCdtChgLE)
                         {
                             if (iMinL == pstLf->iLayer - 1)
                             {
+                                /*if (!pstLf->bInit)
+                                {
+                                    mpG.init(pstLf->eid);
+                                }*/
                                 pstLf->iKMSup--;
                                 if ((pstLf->iKMSup + 2 <= pstLf->iTrussness) && (!pstLf->bCanQFlag))
                                 {
@@ -1707,6 +669,10 @@ int delPart::recalL(myG &mpG, vector <int> &vChgKE, vector <int> &vCdtChgLE)
                             {
                                 if (pstNode->iLayer < pstLf->iLayer - 1)
                                 {
+                                    /*if (!pstLf->bInit)
+                                    {
+                                        mpG.init(pstLf->eid);
+                                    }*/
                                     pstLf->iKMSup--;
                                     if ((pstLf->iKMSup + 2 <= pstLf->iTrussness) && (!pstLf->bCanQFlag))
                                     {
@@ -1720,6 +686,10 @@ int delPart::recalL(myG &mpG, vector <int> &vChgKE, vector <int> &vCdtChgLE)
                         {
                             if (iMinL == pstRt->iLayer - 1)
                             {
+                                /*if (!pstRt->bInit)
+                                {
+                                    mpG.init(pstRt->eid);
+                                }*/
                                 pstRt->iKMSup--;
                                 if ((pstRt->iKMSup + 2 <= pstRt->iTrussness) && (!pstRt->bCanQFlag))
                                 {
@@ -1731,6 +701,10 @@ int delPart::recalL(myG &mpG, vector <int> &vChgKE, vector <int> &vCdtChgLE)
                             {
                                 if (pstNode->iLayer < pstRt->iLayer - 1)
                                 {
+                                    /*if (!pstRt->bInit)
+                                    {
+                                        mpG.init(pstRt->eid);
+                                    }*/
                                     pstRt->iKMSup--;
                                     if ((pstRt->iKMSup + 2 <= pstRt->iTrussness) && (!pstRt->bCanQFlag))
                                     {
@@ -1766,8 +740,26 @@ description:
 int delPart::updateL(myG &mpG, vector <int> &vCdtE, vector <int> &vChgLE)
 {
     TPST_MAP_BY_EID* pstNode = NULL;
+
+	struct timeval tv;
+	long lStartTime = 0;
+	long lLcStartTime = 0;
+	long lCurTime = 0;
+	long lInitTime = 0;
+	long lUptTime = 0;
+	long lReCalTime = 0;
+	long lNeibTime = 0;
     /* <k, L>, eid */
-    map <pair<int, int>, vector<int> > mpPool;
+    //map <pair<int, int>, vector<int> > mpPool;
+    auto cmp = [](TPST_ORDER &left, TPST_ORDER &right) {
+        if (left.k == right.k) {
+            if (left.L == right.L) return (left.eid > right.eid);
+            else return (left.L > right.L);
+        } else return (left.k > right.k); };
+    std::priority_queue<TPST_ORDER, std::vector<TPST_ORDER>, decltype(cmp)> prCanQ(cmp);
+
+    gettimeofday(&tv, NULL);
+    lStartTime = tv.tv_sec * 1000000 + tv.tv_usec;
     for (int iEid : vCdtE)
     {
         pstNode = mpG.findNode(iEid);
@@ -1781,13 +773,20 @@ int delPart::updateL(myG &mpG, vector <int> &vCdtE, vector <int> &vChgLE)
             /* no need to update */
             continue;
         }
-        DEBUG_ASSERT(pstNode->bInit);
 
         pstNode->iOldL = pstNode->iLayer;
         pstNode->bCanQFlag = false;
         recalL(mpG, iEid);
         //DEBUG_PRINTF("UPDATE_L get new layer: %d\n", pstNode->iLayer);
-        DEBUG_ASSERT(pstNode->iLayer < pstNode->iOldL);
+        if (pstNode->iLayer >= pstNode->iOldL)
+        {
+            /*printf("ERROR UPDATE_L recalculate (%d, %d) k: %d layer: %d %d KMSup: %d\n",
+                   pstNode->paXY.first, pstNode->paXY.second, pstNode->iTrussness,
+                   pstNode->iOldL, pstNode->iLayer, pstNode->iKMSup);
+            DEBUG_ASSERT(0);*/
+            // not changed
+            continue;
+        }
         vChgLE.push_back(iEid);
 
         /* update neighbors */
@@ -1798,64 +797,86 @@ int delPart::updateL(myG &mpG, vector <int> &vCdtE, vector <int> &vChgLE)
         {
             TPST_MAP_BY_EID* pstTpNode = mpG.findNode(iChgE);
             DEBUG_ASSERT(NULL != pstTpNode);
-            DEBUG_ASSERT(pstTpNode->bInit);
             DEBUG_ASSERT((pstTpNode->iKMSup + 2 <= pstTpNode->iTrussness) && (1 < pstTpNode->iLayer));
             pstTpNode->bCanQFlag = true;
             /*DEBUG_PRINTF("UPDATE_L set flag (%d, %d)\n",
                                  pstTpNode->paXY.first, pstTpNode->paXY.second);*/
-            mpPool[pair<int, int>(pstTpNode->iTrussness, pstTpNode->iLayer)].push_back(iChgE);
+            //mpPool[pair<int, int>(pstTpNode->iTrussness, pstTpNode->iLayer)].push_back(iChgE);
+            prCanQ.push({pstTpNode->iTrussness, pstTpNode->iLayer, iChgE});
             /*DEBUG_PRINTF("UPDATE_L neighbor (%d, %d) k: %d layer: %d KMSup: %d\n",
                    pstTpNode->paXY.first, pstTpNode->paXY.second, pstTpNode->iTrussness,
                    pstTpNode->iLayer, pstTpNode->iKMSup);*/
         }
     }
 
-    while (!mpPool.empty())
+    gettimeofday(&tv, NULL);
+    lCurTime = tv.tv_sec * 1000000 + tv.tv_usec;
+    lInitTime += lCurTime - lStartTime;
+
+    gettimeofday(&tv, NULL);
+    lStartTime = tv.tv_sec * 1000000 + tv.tv_usec;
+    int iDebugRmCnt = 0;
+    while (!prCanQ.empty())
     {
-        vector<int> vDesE;
-        vDesE.swap(mpPool.begin()->second);
-        mpPool.erase(mpPool.begin());
+        ++iDebugRmCnt;
+        int iEid = prCanQ.top().eid;
+        prCanQ.pop();
 
-        for (int iEid : vDesE)
+        pstNode = mpG.findNode(iEid);
+        DEBUG_ASSERT(NULL != pstNode);
+        /*DEBUG_PRINTF("UPDATE_L BFS (%d, %d) k: %d layer: %d KMSup: %d\n",
+               pstNode->paXY.first, pstNode->paXY.second, pstNode->iTrussness,
+               pstNode->iLayer, pstNode->iKMSup);*/
+
+        pstNode->iOldL = pstNode->iLayer;
+        pstNode->bCanQFlag = false;
+        recalL(mpG, iEid);
+        //DEBUG_PRINTF("UPDATE_L get new layer: %d\n", pstNode->iLayer);
+        if (pstNode->iLayer >= pstNode->iOldL)
         {
-            pstNode = mpG.findNode(iEid);
-            DEBUG_ASSERT(NULL != pstNode);
-            /*DEBUG_PRINTF("UPDATE_L BFS (%d, %d) k: %d layer: %d KMSup: %d\n",
+            printf("ERROR (%d, %d) k: %d new layer: %d old layer: %d kMSup: %d\n",
                    pstNode->paXY.first, pstNode->paXY.second, pstNode->iTrussness,
-                   pstNode->iLayer, pstNode->iKMSup);*/
+                   pstNode->iLayer, pstNode->iOldL, pstNode->iKMSup);
+            DEBUG_ASSERT(0);
+        }
+        vChgLE.push_back(iEid);
 
-            pstNode->iOldL = pstNode->iLayer;
-            pstNode->bCanQFlag = false;
-            recalL(mpG, iEid);
-            //DEBUG_PRINTF("UPDATE_L get new layer: %d\n", pstNode->iLayer);
-            if (pstNode->iLayer >= pstNode->iOldL)
-            {
-                printf("ERROR (%d, %d) k: %d new layer: %d old layer: %d\n",
-                       pstNode->paXY.first, pstNode->paXY.second, pstNode->iTrussness,
-                       pstNode->iLayer, pstNode->iOldL);
-                DEBUG_ASSERT(0);
-            }
-            vChgLE.push_back(iEid);
+        /* update neighbors */
+        vector<int> vCdtChgLE;
+        vCdtChgLE.reserve(pstNode->vKLfE.size() * 2);
+        updNeibL(mpG, iEid, vCdtChgLE);
+        /* recalculate layer */
+        for (int iChgE : vCdtChgLE)
+        {
+            TPST_MAP_BY_EID* pstTpNode = mpG.findNode(iChgE);
+            DEBUG_ASSERT(NULL != pstTpNode);
+            DEBUG_ASSERT((pstTpNode->iKMSup + 2 <= pstTpNode->iTrussness) && (1 < pstTpNode->iLayer));
+            pstTpNode->bCanQFlag = true;
 
-            /* update neighbors */
-            vector<int> vCdtChgLE;
-            updNeibL(mpG, iEid, vCdtChgLE);
-            /* recalculate layer */
-            for (int iChgE : vCdtChgLE)
-            {
-                TPST_MAP_BY_EID* pstTpNode = mpG.findNode(iChgE);
-                DEBUG_ASSERT(NULL != pstTpNode);
-                DEBUG_ASSERT(pstTpNode->bInit);
-                DEBUG_ASSERT((pstTpNode->iKMSup + 2 <= pstTpNode->iTrussness) && (1 < pstTpNode->iLayer));
-                pstTpNode->bCanQFlag = true;
-
-                mpPool[pair<int, int>(pstTpNode->iTrussness, pstTpNode->iLayer)].push_back(iChgE);
-                /*DEBUG_PRINTF("UPDATE_L neighbor (%d, %d) k: %d layer: %d KMSup: %d\n",
-                       pstTpNode->paXY.first, pstTpNode->paXY.second, pstTpNode->iTrussness,
-                       pstTpNode->iLayer, pstTpNode->iKMSup);*/
-            }
+            //mpPool[pair<int, int>(pstTpNode->iTrussness, pstTpNode->iLayer)].push_back(iChgE);
+            prCanQ.push({pstTpNode->iTrussness, pstTpNode->iLayer, iChgE});
+            /*DEBUG_PRINTF("UPDATE_L neighbor (%d, %d) k: %d layer: %d KMSup: %d\n",
+                   pstTpNode->paXY.first, pstTpNode->paXY.second, pstTpNode->iTrussness,
+                   pstTpNode->iLayer, pstTpNode->iKMSup);*/
         }
     }
+
+    gettimeofday(&tv, NULL);
+    lCurTime = tv.tv_sec * 1000000 + tv.tv_usec;
+    lUptTime += lCurTime - lStartTime;
+
+    /*DEBUG_PRINTF("UPDATE_L remove num: %d reCalL: %d inNeigh: %d\n",
+                 iDebugRmCnt, g_lReCalCnt, g_lNeibInitCnt);
+    DEBUG_PRINTF("UPDATE_L seed size: %d all: %d\n", vCdtE.size(), vChgLE.size());
+    DEBUG_PRINTF("UPDATE_L init L cnt: %d reuse: %d\n", g_lLInitCnt, g_lLReuseCnt);
+
+    DEBUG_PRINTF("UPDATE_L init time %.3f ms\n", (lInitTime) / 1000.0);
+    DEBUG_PRINTF("UPDATE_L update time %.3f ms\n", (lUptTime) / 1000.0);
+    DEBUG_PRINTF("UPDATE_L reCal time %.3f ms\n", (lReCalTime) / 1000.0);
+    DEBUG_PRINTF("UPDATE_L neigh time %.3f ms\n", (lNeibTime) / 1000.0);
+    DEBUG_PRINTF("UPDATE_L g_lRecalLInitTime %.3f ms\n", (g_lRecalLInitTime) / 1000.0);
+    DEBUG_PRINTF("UPDATE_L g_lRecalLCntTime %.3f ms\n", (g_lRecalLCntTime) / 1000.0);
+    DEBUG_PRINTF("UPDATE_L g_lRecalLCalTime %.3f ms\n", (g_lRecalLCalTime) / 1000.0);*/
     return 0;
 }
 
@@ -2007,273 +1028,6 @@ int delPart::triOrder(myG &mpG, int iEid, int iLfEid, int iRtEid, bool *pbLfSup,
 
     return 0;
 }
-#if 0
-/*****************
-input:
-        myG &mpG
-        int iEid
-        int iLfEid
-        int iRtEid
-description:
-        2: self > left or right
-        1: self = max(left, right)
-        0: self in (left, right)
-        -1: self = min(left, right)
-        -2: self < left and right
-******************/
-int delPart::checkOrder(myG &mpG, int iEid, int iLfEid, int iRtEid)
-{
-    TPST_MAP_BY_EID* pstNode = NULL;
-    TPST_MAP_BY_EID* pstLfNode = NULL;
-    TPST_MAP_BY_EID* pstRtNode = NULL;
-    int iCurK = 0;
-    int iCurL = 0;
-    int iRes = 0;
-
-    pstNode = mpG.findNode(iEid);
-    DEBUG_ASSERT(NULL != pstNode);
-    pstLfNode = mpG.findNode(iLfEid);
-    DEBUG_ASSERT(NULL != pstLfNode);
-    pstRtNode = mpG.findNode(iRtEid);
-    DEBUG_ASSERT(NULL != pstRtNode);
-
-    iCurK = pstNode->iTrussness;
-    iCurL = pstNode->iLayer;
-
-    if (iCurK > pstLfNode->iTrussness)
-    {
-        if (iCurK > pstRtNode->iTrussness)
-        {
-            iRes = 2;
-        }
-        else if (iCurK < pstRtNode->iTrussness)
-        {
-            iRes = 0;
-        }
-        else
-        {
-            if (iCurL > pstRtNode->iLayer)
-            {
-                iRes = 2;
-            }
-            else if (iCurL < pstRtNode->iLayer)
-            {
-                iRes = 0;
-            }
-            else
-            {
-                iRes = 1;
-            }
-        }
-    }
-    else if (iCurK < pstLfNode->iTrussness)
-    {
-        if (iCurK > pstRtNode->iTrussness)
-        {
-            iRes = 0;
-        }
-        else if (iCurK < pstRtNode->iTrussness)
-        {
-            iRes = -2;
-        }
-        else
-        {
-            if (iCurL > pstRtNode->iLayer)
-            {
-                iRes = 0;
-            }
-            else if (iCurL < pstRtNode->iLayer)
-            {
-                iRes = -2;
-            }
-            else
-            {
-                iRes = -1;
-            }
-        }
-    }
-    else
-    {
-        if (iCurK > pstRtNode->iTrussness)
-        {
-            if (iCurL > pstLfNode->iLayer)
-            {
-                iRes = 2;
-            }
-            else if (iCurL < pstLfNode->iLayer)
-            {
-                iRes = 0;
-            }
-            else
-            {
-                iRes = 1;
-            }
-        }
-        else if (iCurK < pstRtNode->iTrussness)
-        {
-            if (iCurL > pstLfNode->iLayer)
-            {
-                iRes = 0;
-            }
-            else if (iCurL < pstLfNode->iLayer)
-            {
-                iRes = -2;
-            }
-            else
-            {
-                iRes = -1;
-            }
-        }
-        else
-        {
-            /* all are the same k */
-            if (iCurL > pstLfNode->iLayer)
-            {
-                if (iCurL > pstRtNode->iLayer)
-                {
-                    iRes = 2;
-                }
-                else if (iCurL < pstRtNode->iLayer)
-                {
-                    iRes = 0;
-                }
-                else
-                {
-                    iRes = 1;
-                }
-            }
-            else if (iCurL < pstLfNode->iLayer)
-            {
-                if (iCurL > pstRtNode->iLayer)
-                {
-                    iRes = 0;
-                }
-                else if (iCurL < pstRtNode->iLayer)
-                {
-                    iRes = -2;
-                }
-                else
-                {
-                    iRes = -1;
-                }
-            }
-            else
-            {
-                if (iCurL > pstRtNode->iLayer)
-                {
-                    iRes = 1;
-                }
-                else if (iCurL < pstRtNode->iLayer)
-                {
-                    iRes = -1;
-                }
-                else
-                {
-                    iRes = 0;
-                }
-            }
-        }
-    }
-
-    return iRes;
-}
-
-/*****************
-input:
-        myG &mpG
-        int iEid
-        int iLfEid
-        int iRtEid
-description:
-        true: sup change
-        false: sup not change
-******************/
-bool delPart::triRmCheck(myG &mpG, int iEid, int iLfEid, int iRtEid)
-{
-    TPST_MAP_BY_EID* pstNode = NULL;
-    TPST_MAP_BY_EID* pstLfNode = NULL;
-    TPST_MAP_BY_EID* pstRtNode = NULL;
-    int iCurK = 0;
-    int iCurL = 0;
-    bool bRes = 0;
-
-    pstNode = mpG.findNode(iEid);
-    DEBUG_ASSERT(NULL != pstNode);
-    pstLfNode = mpG.findNode(iLfEid);
-    DEBUG_ASSERT(NULL != pstLfNode);
-    pstRtNode = mpG.findNode(iRtEid);
-    DEBUG_ASSERT(NULL != pstRtNode);
-
-    iCurK = pstNode->iTrussness;
-    iCurL = pstNode->iLayer;
-
-    if (iCurK > pstLfNode->iTrussness)
-    {
-        bRes = false;
-    }
-    else if (iCurK < pstLfNode->iTrussness)
-    {
-        if (iCurK > pstRtNode->iTrussness)
-        {
-            bRes = false;
-        }
-        else if (iCurK < pstRtNode->iTrussness)
-        {
-            bRes = true;
-        }
-        else
-        {
-            if (iCurL > pstRtNode->iLayer + 1)
-            {
-                bRes = false;
-            }
-            else
-            {
-                bRes = true;
-            }
-        }
-    }
-    else
-    {
-        if (iCurK > pstRtNode->iTrussness)
-        {
-            bRes = false;
-        }
-        else if (iCurK < pstRtNode->iTrussness)
-        {
-            if (iCurL > pstLfNode->iLayer + 1)
-            {
-                bRes = false;
-            }
-            else
-            {
-                bRes = true;
-            }
-        }
-        else
-        {
-            /* all are the same k */
-            if (iCurL > pstLfNode->iLayer + 1)
-            {
-                bRes = false;
-            }
-            else
-            {
-                if (iCurL > pstRtNode->iLayer + 1)
-                {
-                    bRes = false;
-                }
-                else
-                {
-                    bRes = true;
-                }
-            }
-        }
-    }
-
-    return bRes;
-}
-#endif
 /*****************
 input:
         myG &mpG
@@ -2285,17 +1039,12 @@ description:
 int delPart::simpleRm(myG &mpG, int iEid)
 {
     TPST_MAP_BY_EID* pstNode = NULL;
-    vector<int>::iterator itLfE;
-    vector<int>::iterator itRtE;
+    vector<uint32_t>::iterator itLfE;
+    vector<uint32_t>::iterator itRtE;
     TPST_MAP_BY_EID* pstTpNode = NULL;
     TPST_MAP_BY_EID* pstTpONode = NULL;
     int iTpEid = 0;
     int iTpOEid = 0;
-    int iMinT = 0;
-    bool bLfSup = false;
-    bool bRtSup = false;
-    bool bLfCheck = false;
-    bool bRtCheck = false;
 
 	/*struct timeval tv;
 	long lStartTime = 0;
@@ -2304,22 +1053,17 @@ int delPart::simpleRm(myG &mpG, int iEid)
     DEBUG_ASSERT(0 != iEid);
     pstNode = mpG.findNode(iEid);
     DEBUG_ASSERT(NULL != pstNode);
-    if (!pstNode->bInit)
+    /*if (!pstNode->bInit)
     {
         mpG.init(pstNode->eid);
-    }
-    //pstNode->bRmFlag = true;
-
-    vector<int> vLfE;
-    vector<int> vRtE;
-    mpG.findNeb(pstNode->eid, vLfE, vRtE);
+    }*/
 
     /*gettimeofday(&tv, NULL);
     lStartTime = tv.tv_sec * 1000000 + tv.tv_usec;*/
 
-    itLfE = vLfE.begin();
-    itRtE = vRtE.begin();
-    for (; itLfE != vLfE.end(); ++itLfE, ++itRtE)
+    itLfE = pstNode->vLfE.begin();
+    itRtE = pstNode->vRtE.begin();
+    for (; itLfE != pstNode->vLfE.end(); ++itLfE, ++itRtE)
     {
         iTpEid = *itLfE;
         iTpOEid = *itRtE;
@@ -2341,57 +1085,50 @@ int delPart::simpleRm(myG &mpG, int iEid)
                      pstTpONode->iLayer, pstTpONode->iSeSup,
                      pstTpONode->iKSup, pstTpONode->iKMSup,
                      pstTpONode->mpLfE.size());*/
-        if (!pstTpNode->bInit)
+        // remove the edge from record
+        /*if (pstTpNode->bInit)
         {
-            mpG.init(pstTpNode->eid);
+            for (int iTpPos = 0; iTpPos < pstTpNode->vLfE.size(); ++iTpPos)
+            {
+                if ((pstTpNode->vLfE[iTpPos] == iEid) || (pstTpNode->vLfE[iTpPos] == iTpOEid))
+                {
+                    pstTpNode->vLfE.erase(pstTpNode->vLfE.begin() + iTpPos);
+                    pstTpNode->vRtE.erase(pstTpNode->vRtE.begin() + iTpPos);
+                    break;
+                }
+            }
         }
-        if (!pstTpONode->bInit)
+        if (pstTpONode->bInit)
         {
-            mpG.init(pstTpONode->eid);
+            for (int iTpPos = 0; iTpPos < pstTpONode->vLfE.size(); ++iTpPos)
+            {
+                if ((pstTpONode->vLfE[iTpPos] == iEid) || (pstTpONode->vLfE[iTpPos] == iTpEid))
+                {
+                    pstTpONode->vLfE.erase(pstTpONode->vLfE.begin() + iTpPos);
+                    pstTpONode->vRtE.erase(pstTpONode->vRtE.begin() + iTpPos);
+                    break;
+                }
+            }
+        }*/
+        for (int iTpPos = 0; iTpPos < pstTpNode->vLfE.size(); ++iTpPos)
+        {
+            if ((pstTpNode->vLfE[iTpPos] == iEid) || (pstTpNode->vLfE[iTpPos] == iTpOEid))
+            {
+                pstTpNode->vLfE.erase(pstTpNode->vLfE.begin() + iTpPos);
+                pstTpNode->vRtE.erase(pstTpNode->vRtE.begin() + iTpPos);
+                break;
+            }
+        }
+        for (int iTpPos = 0; iTpPos < pstTpONode->vLfE.size(); ++iTpPos)
+        {
+            if ((pstTpONode->vLfE[iTpPos] == iEid) || (pstTpONode->vLfE[iTpPos] == iTpEid))
+            {
+                pstTpONode->vLfE.erase(pstTpONode->vLfE.begin() + iTpPos);
+                pstTpONode->vRtE.erase(pstTpONode->vRtE.begin() + iTpPos);
+                break;
+            }
         }
 
-        iMinT = COMMON_MIN(pstTpNode->iTrussness, pstTpONode->iTrussness);
-        iMinT = COMMON_MIN(iMinT, pstNode->iTrussness);
-        if (iMinT == pstTpNode->iTrussness)
-        {
-            pstTpNode->iKSup--;
-        }
-        if (iMinT == pstTpONode->iTrussness)
-        {
-            pstTpONode->iKSup--;
-        }
-
-        triOrder(mpG, iEid, *itLfE, *itRtE, &bLfSup, &bRtSup, &bLfCheck, &bRtCheck);
-        if (bLfSup)
-        {
-            pstTpNode->iSeSup--;
-            pstTpNode->iKMSup--;
-        }
-        if (bRtSup)
-        {
-            pstTpONode->iSeSup--;
-            pstTpONode->iKMSup--;
-        }
-        if (bLfCheck)
-        {
-            pstTpNode->iKMSup--;
-        }
-        if (bRtCheck)
-        {
-            pstTpONode->iKMSup--;
-        }
-
-        pstTpNode->mpLfE.erase(iEid);
-        pstTpNode->mpLfE.erase(iTpOEid);
-
-        //pstTpNode->mpRtE.erase(iEid);
-        //pstTpNode->mpRtE.erase(iTpOEid);
-
-        pstTpONode->mpLfE.erase(iEid);
-        pstTpONode->mpLfE.erase(iTpEid);
-
-        //pstTpONode->mpRtE.erase(iEid);
-        //pstTpONode->mpRtE.erase(iTpEid);
 
         /*DEBUG_PRINTF("SIMPLE_RM after (%d, %d) k: %d Layer: %d SeSup: %d, kSup: %d kMSup: %d neighbor size: %d\n",
                      pstTpNode->paXY.first, pstTpNode->paXY.second,
@@ -2407,14 +1144,14 @@ int delPart::simpleRm(myG &mpG, int iEid)
                      pstTpONode->mpLfE.size());*/
 
     }
-    DEBUG_ASSERT(itRtE == vRtE.end());
+    DEBUG_ASSERT(itRtE == pstNode->vRtE.end());
 
     /*gettimeofday(&tv, NULL);
     lCurTime = tv.tv_sec * 1000000 + tv.tv_usec;
     g_lPreRmCoreTime += lCurTime - lStartTime;*/
 
-    pstNode->mpLfE.clear();
-    //pstNode->mpRtE.clear();
+    pstNode->vLfE.clear();
+    pstNode->vLfE.clear();
 
     /*gettimeofday(&tv, NULL);
     lStartTime = tv.tv_sec * 1000000 + tv.tv_usec;*/
@@ -2425,7 +1162,7 @@ int delPart::simpleRm(myG &mpG, int iEid)
 
     return 0;
 }
-
+# if 0
 /*****************
 input:
         myG &mpG
@@ -2870,219 +1607,7 @@ int delPart::localDec(myG &mpG, int iNode, map<pair<int, int>, int> &mpLocalG, u
     }
     return 0;
 }
-#if 0
-/*****************
-input:
-        myG &mpG
-        int iNode
-description:
-        find up/low bound for p neighbor
-******************/
-int delPart::nodeDec(myG &mpG, int iNode, vector <int> &vCdtE)
-{
-    list<int> lstNeibP;
-    list<int>::iterator itNeibP;
-    list<int> lsThirdE;
-    list<int>::iterator itE;
-    /* <k, layer>, <pid, pid> */
-    map<pair<int, int>, list<pair<int, int> > > mpKPLs;
-    map<pair<int, int>, int> mpLocalG;
 
-    vector <int> vVisited;
-    vector <int>::iterator itvE;
-    vector <int> vCheck;
-
-    /* pid, nodeInfo */
-    unordered_map<int, TPSTMP_P_INFO> mpLocalP;
-    unordered_map<int, TPSTMP_P_INFO>::iterator itmpP;
-    TPSTMP_P_INFO *pstPInfo = NULL;
-
-    TPST_MAP_BY_EID* pstNode = NULL;
-
-    bool res = false;
-
-    /* get valuable edges, filter no possible edges (sup+2 < k-1 or trussness > k-1) */
-    mpG.findPNebPTrdE(iNode, lstNeibP, lsThirdE);
-    DEBUG_PRINTF("DEBUG find done\n");
-    for (itNeibP = lstNeibP.begin(); itNeibP != lstNeibP.end(); ++itNeibP)
-    {
-        pstPInfo = &(mpLocalP[*itNeibP]);
-        pstPInfo->iPid = *itNeibP;
-        pstPInfo->iLocalD = 0;
-        pstPInfo->iMaxK = 2;
-
-        pstPInfo->iLowB = 2;
-        pstPInfo->iLayer = 1;
-        pstPInfo->iSeSup = 0;
-        pstPInfo->bRmFlag = false;
-        pstPInfo->bLock = false;
-
-        pstNode = mpG.findNode(iNode, *itNeibP);
-        DEBUG_ASSERT(NULL != pstNode);
-        vVisited.push_back(pstNode->eid);
-    }
-
-    DEBUG_PRINTF("DEBUG neigh done\n");
-    for (itE = lsThirdE.begin(); itE != lsThirdE.end(); ++itE)
-    {
-        pstNode = mpG.findNode(*itE);
-        DEBUG_ASSERT(NULL != pstNode);
-
-        /* at least 3-truss */
-        if (pstNode->iTrussness < 3)
-        {
-            /* couldn't happen in removal */
-            DEBUG_ASSERT(0);
-        }
-        //mpG.checkSeSup(pstNode->eid);
-        vVisited.push_back(pstNode->eid);
-
-        pstPInfo = &(mpLocalP[pstNode->paXY.first]);
-        pstPInfo->iLocalD++;
-        pstPInfo->iMaxK = COMMON_MAX(pstPInfo->iMaxK, pstNode->iTrussness);
-
-        pstPInfo = &(mpLocalP[pstNode->paXY.second]);
-        pstPInfo->iLocalD++;
-        pstPInfo->iMaxK = COMMON_MAX(pstPInfo->iMaxK, pstNode->iTrussness);
-
-        mpLocalG[pair<int, int>(pstNode->paXY.first, pstNode->paXY.second)];
-        mpLocalG[pair<int, int>(pstNode->paXY.second, pstNode->paXY.first)];
-        mpKPLs[pair<int, int>(pstNode->iTrussness, pstNode->iLayer)].push_back(pstNode->paXY);
-    }
-
-    localDec(mpG, iNode, mpLocalG, mpLocalP, mpKPLs);
-
-    /* add seed */
-    for (itE = lsThirdE.begin(); itE != lsThirdE.end(); ++itE)
-    {
-        int iTpMinK = 0;
-        int iTpMinT = 0;
-        int iTpMinL = 0;
-        int iTpMinPreL = 0;
-        bool bDeSup = false;
-        bool bCheck = false;
-        TPST_MAP_BY_EID* pstLeftNode = NULL;
-        TPST_MAP_BY_EID* pstRightNode = NULL;
-
-        unordered_map<int, TPSTMP_P_INFO>::iterator itLfP;
-        unordered_map<int, TPSTMP_P_INFO>::iterator itRtP;
-
-        pstNode = mpG.findNode(*itE);
-        DEBUG_ASSERT(NULL != pstNode);
-
-        itLfP = mpLocalP.find(pstNode->paXY.first);
-        DEBUG_ASSERT(mpLocalP.end() != itLfP);
-        itRtP = mpLocalP.find(pstNode->paXY.second);
-        DEBUG_ASSERT(mpLocalP.end() != itRtP);
-
-        DEBUG_PRINTF("DEBUB after local third (%d, %d) k: %d Layer: %d SeSup: %d, low: %d %d\n",
-                     pstNode->paXY.first, pstNode->paXY.second,
-                     pstNode->iTrussness,
-                     pstNode->iLayer, pstNode->iSeSup,
-                     itLfP->second.iLowB, itRtP->second.iLowB);
-
-        iTpMinK = COMMON_MIN(itLfP->second.iLowB,
-                            itRtP->second.iLowB);
-        if (iTpMinK > pstNode->iTrussness)
-        {
-            /* cannot decrease sup, ignore */
-            continue;
-        }
-        else if (iTpMinK == pstNode->iTrussness)
-        {
-            iTpMinL = COMMON_MIN_LAYER(itLfP->second.iLowB, itLfP->second.iLayer,
-                                       itRtP->second.iLowB, itRtP->second.iLayer);
-            if (iTpMinL >= pstNode->iLayer)
-            {
-                continue;
-            }
-        }
-
-        pstLeftNode = mpG.findNode(iNode, pstNode->paXY.first);
-        DEBUG_ASSERT(NULL != pstLeftNode);
-        pstRightNode = mpG.findNode(iNode, pstNode->paXY.second);
-        DEBUG_ASSERT(NULL != pstRightNode);
-
-        iTpMinT = COMMON_MIN(pstLeftNode->iTrussness,
-                            pstRightNode->iTrussness);
-        /* add seed */
-        if (iTpMinT > pstNode->iTrussness)
-        {
-            bDeSup = true;
-        }
-        else if (iTpMinT < pstNode->iTrussness)
-        {
-            continue;
-        }
-        else
-        {
-            iTpMinPreL = COMMON_MIN_LAYER(pstLeftNode->iTrussness, pstLeftNode->iLayer,
-                                       pstRightNode->iTrussness, pstRightNode->iLayer);
-            if (iTpMinPreL < pstNode->iLayer)
-            {
-                if ((iTpMinPreL == pstNode->iLayer - 1) && (iTpMinPreL != iTpMinL))
-                {
-                    /* may decrease preLayer SeSup */
-                    bCheck = true;
-                }
-            }
-            else
-            {
-                bDeSup = true;
-            }
-        }
-
-        if (bDeSup)
-        {
-            pstNode->iSeSup--;
-            bCheck = true;
-            DEBUG_PRINTF("DEBUB decrease Sesup (%d, %d) k: %d Layer: %d SeSup: %d, check: %d\n",
-                         pstNode->paXY.first, pstNode->paXY.second,
-                         pstNode->iTrussness,
-                         pstNode->iLayer, pstNode->iSeSup,
-                         bCheck);
-        }
-        if (bCheck)
-        {
-            vCheck.push_back(pstNode->eid);
-        }
-    }
-
-    /* set trussness */
-    for (itNeibP = lstNeibP.begin(); itNeibP != lstNeibP.end(); ++itNeibP)
-    {
-        pstPInfo = &(mpLocalP[*itNeibP]);
-        pstNode = mpG.findNode(iNode, *itNeibP);
-        DEBUG_ASSERT(NULL != pstNode);
-
-        /* set low bound as trussness */
-        pstNode->iTrussness = pstPInfo->iLowB;
-        pstNode->iLayer = pstPInfo->iLayer;
-        pstNode->iSeSup = pstPInfo->iSeSup;
-    }
-
-    /* check condition in seed */
-    for (itvE = vCheck.begin(); itvE != vCheck.end(); ++itvE)
-    {
-        pstNode = mpG.findNode(*itvE);
-        DEBUG_ASSERT(NULL != pstNode);
-
-        res = checkRmCdt(mpG, pstNode->eid);
-        if (!res)
-        {
-            vCdtE.push_back(pstNode->eid);
-            DEBUG_PRINTF("DEBUB candidature (%d, %d) k: %d Layer: %d SeSup: %d\n",
-                         pstNode->paXY.first, pstNode->paXY.second,
-                         pstNode->iTrussness,
-                         pstNode->iLayer, pstNode->iSeSup);
-        }
-    }
-
-    degradeForAllK(mpG, vCdtE);
-
-    return 0;
-}
-#endif
 /*****************
 input:
         myG &mpG
@@ -3233,35 +1758,7 @@ int delPart::ballDec(myG &mpG, int iNode, vector <int> &vRmP)
                      pstNode->iLayer, pstNode->iSeSup,
                      pstNode->iKSup, pstNode->iKMSup,
                      pstNode->mpLfE.size());*/
-#if 0
-        /* debug */
-        vector<int> vLfE;
-        vector<int> vRtE;
-        vector<int>::iterator itLfE;
-        vector<int>::iterator itRtE;
 
-        mpG.findNeb(pstNode->eid, vLfE, vRtE);
-        itLfE = vLfE.begin();
-        itRtE = vRtE.begin();
-        for (; itLfE != vLfE.end(); ++itLfE, ++itRtE)
-        {
-            pstLf = mpG.findNode(*itLfE);
-            DEBUG_ASSERT(NULL != pstLf);
-            pstRt = mpG.findNode(*itRtE);
-            DEBUG_ASSERT(NULL != pstRt);
-
-            DEBUG_PRINTF("BALL (%d, %d) k: %d L: %d oldL: %d QFlag: %d left: (%d, %d) k: %d L: %d seSup: %d, kSup: %d kMSup: %d QFlag: %d right: (%d, %d) k: %d L: %d seSup: %d, kSup: %d kMSup: %d QFlag: %d\n",
-                             pstNode->paXY.first, pstNode->paXY.second,
-                             pstNode->iTrussness, pstNode->iLayer, pstNode->iOldL, pstNode->bCanQFlag,
-                             pstLf->paXY.first, pstLf->paXY.second,
-                             pstLf->iTrussness, pstLf->iLayer, pstLf->iSeSup,
-                             pstLf->iKSup, pstLf->iKMSup, pstLf->bCanQFlag,
-                             pstRt->paXY.first, pstRt->paXY.second,
-                             pstRt->iTrussness, pstRt->iLayer, pstRt->iSeSup,
-                             pstRt->iKSup, pstRt->iKMSup, pstRt->bCanQFlag);
-        }
-        /* end debug */
-#endif
         /* at least 3-truss */
         if (pstNode->iTrussness < 3)
         {
@@ -3530,6 +2027,574 @@ int delPart::ballDec(myG &mpG, int iNode, vector <int> &vRmP)
     }
     return 0;
 }
+#endif
+
+/*****************
+input:
+        myG &mpG
+        map<pair<int, int>, int> &mpLocalG
+        map<int, TPSTMP_P_INFO> &mpLocalP
+        map<pair<int, int>, list<pair<int, int> > > &mpKPLs
+description:
+        local decomposition
+******************/
+bool delPart::cmpOrder(const TPST_ORDER& e1, const TPST_ORDER& e2)
+{
+    if (e1.k > e2.k)
+    {
+        return true;
+    }
+    else if (e1.k < e2.k)
+    {
+        return false;
+    }
+    else
+    {
+        if (e1.L > e2.L)
+        {
+            return true;
+        }
+        else if (e1.L < e2.L)
+        {
+            return false;
+        }
+    }
+    return false;
+}
+/*****************
+input:
+        myG &mpG
+        int iNode
+        vector <AdjEntry> &vNeibE
+        vector <int> &vRmNeb
+output:
+        vector <int> &vRmE
+        vector <int> &vKSeed
+        vector <int> &vLSeed
+description:
+        local decomposition
+        neighbor edges maintain: k, layer, seSup, kSup, kMSup
+        third edges maintain: seSup, kSup, kMSup, seed
+******************/
+int delPart::localDec(myG &mpG, int iNode, vector <AdjEntry> &vNeibE, vector <int> &vRmNeb, vector <int> &vRmE, vector <int> &vKSeed, vector <int> &vLSeed)
+{
+    /* all are temp id */
+    vector<vector<AdjEntry> > adj;
+    TPST_MAP_BY_EID* pstNode = NULL;
+    TPST_MAP_BY_EID *pstLf = NULL;
+    TPST_MAP_BY_EID *pstRt = NULL;
+    TPST_MAP_BY_EID *pstDes = NULL;
+    TPST_MAP_BY_EID *pstTrd = NULL;
+    vector <uint32_t>::iterator itLfE;
+    vector <uint32_t>::iterator itRtE;
+    vector <int> vEdges;
+    vector <TPST_ORDER> vTrdOrder;
+    vector <pair<int, int> > vPair;
+    int iSupMax = 0;
+
+    int i_N = vNeibE.size();
+    int i_M = 0;
+
+    sort(vRmNeb.begin(), vRmNeb.end());
+
+    //DEBUG_PRINTF("LOCAL start degree: %d\n", i_N);
+
+    //DEBUG_PRINTF("LOCAL reserve done\n");
+    /* rename id */
+    for (int iTpId = 0; iTpId < i_N; ++iTpId)
+    {
+        pstNode = mpG.findNode(vNeibE[iTpId].eid);
+        //DEBUG_ASSERT(NULL != pstNode);
+        pstNode->iTpId = iTpId;
+        /*if (!pstNode->bInit)
+        {
+            mpG.init(pstNode->eid);
+        }*/
+    }
+
+    //DEBUG_PRINTF("LOCAL adj start\n");
+    // initialize adjacency arrays
+    adj.resize(i_N);
+    for (int iTpId = 0; iTpId < i_N; ++iTpId)
+    {
+        int iEid = vNeibE[iTpId].eid;
+
+        pstNode = mpG.findNode(iEid);
+        //DEBUG_ASSERT(NULL != pstNode);
+        int iDegree = pstNode->vLfE.size();
+        adj[pstNode->iTpId].reserve(iDegree);
+        iSupMax = COMMON_MAX(iSupMax, iDegree);
+        i_M += iDegree;
+        /*DEBUG_PRINTF("LOCAL neighbor init (%d, %d) k: %d layer: %d seSup: %d degree: %d pos: %d neib: %d init: %d\n",
+                     pstNode->paXY.first, pstNode->paXY.second,
+                     pstNode->iTrussness, pstNode->iLayer,
+                     pstNode->iSeSup, iDegree, iTpId, vNeibE[iTpId].iPid, pstNode->bInit);*/
+    }
+    i_M /= 2;
+    vEdges.reserve(i_M);
+    vPair.reserve(i_M);
+
+    for (int iTpId = 0; iTpId < i_N; ++iTpId)
+    {
+        int iEid = vNeibE[iTpId].eid;
+        //DEBUG_PRINTF("LOCAL current node: %d\n", iTpId);
+
+        pstNode = mpG.findNode(iEid);
+        //DEBUG_ASSERT(NULL != pstNode);
+
+        /* fill neighbor truss vector */
+        itLfE = pstNode->vLfE.begin();
+        itRtE = pstNode->vRtE.begin();
+        for (; itLfE != pstNode->vLfE.end(); ++itLfE, ++itRtE)
+        {
+            pstLf = mpG.findNode(*itLfE);
+            //DEBUG_ASSERT(NULL != pstLf);
+            pstRt = mpG.findNode(*itRtE);
+            //DEBUG_ASSERT(NULL != pstRt);
+            if ((pstLf->paXY.first == iNode) || (pstLf->paXY.second == iNode))
+            {
+                pstDes = pstLf;
+                pstTrd = pstRt;
+            }
+            else
+            {
+                //DEBUG_ASSERT((pstRt->paXY.first == iNode) || (pstRt->paXY.second == iNode));
+                pstDes = pstRt;
+                pstTrd = pstLf;
+            }
+            //DEBUG_PRINTF("LOCAL neighbor: %d\n", pstDes->iTpId);
+            if (pstNode->iTpId > pstDes->iTpId)
+            {
+                /* ignore half */
+                continue;
+            }
+            vEdges.push_back(pstTrd->eid);
+            vPair.push_back(pair<int, int>(pstNode->iTpId, pstDes->iTpId));
+            int iTpEid = vEdges.size() - 1;
+            pstTrd->iTpId = iTpEid;
+            adj[pstNode->iTpId].push_back({pstDes->iTpId, iTpEid});
+            adj[pstDes->iTpId].push_back({pstNode->iTpId, iTpEid});
+
+            vTrdOrder.push_back({pstTrd->iTrussness, pstTrd->iLayer, iTpEid});
+            /*DEBUG_PRINTF("LOCAL adj (%d, %d) k: %d L:%d\n",
+                         pstTrd->paXY.first, pstTrd->paXY.second,
+                         pstTrd->iTrussness, pstTrd->iLayer);*/
+        }
+
+    }
+
+    //DEBUG_PRINTF("LOCAL decomposition start\n");
+    sort(vTrdOrder.begin(), vTrdOrder.end(), cmpOrder);
+    // 2. decomposition
+    // 2.1. sort the nodes according to their degrees
+    //i_M = vEdges.size();
+    //DEBUG_ASSERT(i_M == vEdges.size());
+    vector<vector<int> > bin(iSupMax + 1);
+    /*for (int i = 0; i <= iSupMax; ++i)
+    {
+        bin[i].reserve(i_N);
+    }*/
+    vector<int> v_D(i_N);
+    for (int pid = 0; pid < i_N; ++pid)
+    {
+        v_D[pid] = adj[pid].size();
+        bin[v_D[pid]].push_back(pid);
+    }
+
+    //DEBUG_PRINTF("LOCAL peeling start\n");
+    // 2.2. peeling
+    vector<int> v_t(i_N, 0);
+    vector<int> v_L(i_N, 0);
+    vector<int> v_SeSup(i_N, 0);
+    vector<int> v_kSup(i_N, 0);
+    vector<int> v_LMSup(i_N, 0);
+    vector<int> v_LMK(i_N, 0);
+    vector<int> v_LML(i_N, 0);
+    vector<bool> vNRmd(i_N, false);
+    vector<bool> vNWaitRmd(i_N, false);
+    vector<bool> vNChgD(i_N, false);
+    vector<bool> vERmd(i_M, false);
+    vector<int> vChgDQ;
+    vChgDQ.reserve(i_N);
+
+    auto udtSup = [&v_LMK, &v_LML, &v_kSup, &v_LMSup, &v_D, &vNWaitRmd](const int iNode, const int iCurK, const int iPreL) {
+        if (vNWaitRmd[iNode])
+        {
+            /* will be removed */
+            return;
+        }
+        if (iCurK == v_LMK[iNode]){
+            if (iPreL == v_LML[iNode]){
+                /* nothing */
+                return;
+            }
+        } else {
+            /* kSup */
+            v_kSup[iNode] = v_D[iNode];
+            v_LMK[iNode] = iCurK;
+        }
+        /* LMSup */
+        v_LMSup[iNode] = v_D[iNode];
+        v_LML[iNode] = iPreL;
+        return;
+    };
+
+    int iCurK = 1;
+    int iCurL = 1;
+    int iRmCnt = 0;
+    vector<int> vWait;
+    vWait.reserve(i_N);
+
+    // push edges removed in to queue
+    vector<int>::iterator itRmPos = vRmNeb.begin();
+    for (int pid = 0; pid < i_N; ++pid)
+    {
+        if (vNeibE[pid].pid == *itRmPos)
+        {
+            /* should be removed */
+            v_t[pid] = 1;
+            v_L[pid] = 1;
+            v_SeSup[pid] = 0;
+            vWait.push_back(pid);
+            vNWaitRmd[pid] = true;
+            vRmE.push_back(vNeibE[pid].eid);
+            ++itRmPos;
+            if (itRmPos == vRmNeb.end())
+            {
+                break;
+            }
+        }
+    }
+
+    // 2.2.1. process the edges layer by layer
+    while (iRmCnt < i_N)
+    {
+        //DEBUG_PRINTF("LOCAL current k: %d L: %d\n", iCurK, iCurL);
+        while ((!vTrdOrder.empty()) && cmpOrder({iCurK, iCurL, 0}, vTrdOrder.back()))
+        {
+            /* rm edge */
+            int iTpEid = vTrdOrder.back().eid;
+            /*DEBUG_PRINTF("LOCAL rm edges (%d, %d) start len: %d\n",
+                         vNeibE[vPair[iTpEid].first].pid,
+                         vNeibE[vPair[iTpEid].second].pid, vTrdOrder.size());*/
+            vTrdOrder.pop_back();
+            if (!vERmd[iTpEid])
+            {
+                vERmd[iTpEid] = true;
+                //DEBUG_ASSERT(0 < v_D[vPair[iTpEid].first]);
+                int iTpNode = vPair[iTpEid].first;
+                udtSup(iTpNode, iCurK, iCurL - 1);
+                --v_D[iTpNode];
+                //DEBUG_PRINTF("LOCAL decrease node: %d D: %d\n", vNeibE[iTpNode].pid, v_D[iTpNode]);
+                if (!vNChgD[iTpNode])
+                {
+                    vNChgD[iTpNode] = true;
+                    vChgDQ.push_back(iTpNode);
+                }
+
+                iTpNode = vPair[iTpEid].second;
+                udtSup(iTpNode, iCurK, iCurL - 1);
+                --v_D[iTpNode];
+                //DEBUG_PRINTF("LOCAL decrease node: %d D: %d\n", vNeibE[iTpNode].pid, v_D[iTpNode]);
+                if (!vNChgD[iTpNode])
+                {
+                    vNChgD[iTpNode] = true;
+                    vChgDQ.push_back(iTpNode);
+                }
+            }
+        }
+        for (int iTpPid : vChgDQ)
+        {
+            //DEBUG_ASSERT(-1 < v_D[iTpPid]);
+            bin[v_D[iTpPid]].push_back(iTpPid);
+            vNChgD[iTpPid] = false;
+        }
+        vChgDQ.clear();
+        //DEBUG_PRINTF("LOCAL rm nodes start\n");
+        for (int i = 0; i <= iCurK - 2; ++i)
+        {
+            for (auto pid : bin[i])
+            {
+                /* avoid repetition */
+                if ((!vNRmd[pid]) && (iCurK != v_t[pid]))
+                {
+                    vWait.push_back(pid);
+                    vNWaitRmd[pid] = true;
+                    v_t[pid] = iCurK;
+                    v_L[pid] = iCurL;
+                    v_SeSup[pid] = i;
+
+                    if (1 == iCurL)
+                    {
+                        /* new k */
+                        v_kSup[pid] = v_D[pid];
+                        v_LMSup[pid] = v_D[pid];
+                        v_LMK[pid] = iCurK;
+                        v_LML[pid] = iCurL;
+                    }
+                }
+            }
+            bin[i].clear();
+        }
+
+        if (vWait.empty())
+        {
+            if (!vTrdOrder.empty())
+            {
+                if ((cmpOrder({iCurK + 1, 1, 0}, vTrdOrder.back())))
+                {
+                    ++iCurL;
+                    continue;
+                }
+            }
+            ++iCurK;
+            iCurL = 1;
+            continue;
+        }
+
+        //DEBUG_PRINTF("LOCAL rm neighbor start\n");
+        for (auto pid : vWait)
+        {
+            //DEBUG_PRINTF("LOCAL rm node: %d\n", vNeibE[pid].pid);
+            vNRmd[pid] = true;
+            vNWaitRmd[pid] = false;
+            ++iRmCnt;
+
+            for (const auto neiP : adj[pid])
+            {
+                if (vNRmd[neiP.pid]) continue;
+                if (vERmd[neiP.eid]) continue;
+
+                udtSup(neiP.pid, iCurK, iCurL);
+                --v_D[neiP.pid];
+                //DEBUG_PRINTF("LOCAL decrease node: %d D: %d\n", vNeibE[neiP.pid].pid, v_D[neiP.pid]);
+                if (!vNChgD[neiP.pid])
+                {
+                    vNChgD[neiP.pid] = true;
+                    vChgDQ.push_back(neiP.pid);
+                }
+                vERmd[neiP.eid] = true;
+            }
+        }
+        vWait.clear();
+        for (int iTpPid : vChgDQ)
+        {
+            DEBUG_ASSERT(-1 < v_D[iTpPid]);
+            bin[v_D[iTpPid]].push_back(iTpPid);
+            vNChgD[iTpPid] = false;
+        }
+        vChgDQ.clear();
+        ++iCurL;
+    }
+
+    //DEBUG_PRINTF("LOCAL save start\n");
+    /* save result */
+    for (int iTpId = 0; iTpId < i_M; ++iTpId)
+    {
+        int iEid = vEdges[iTpId];
+        int iLfTpPid = vPair[iTpId].first;
+        int iRtTpPid = vPair[iTpId].second;
+        int iLfEid = vNeibE[iLfTpPid].eid;
+        int iRtEid = vNeibE[iRtTpPid].eid;
+
+        bool bChg = false;
+
+        pstNode = mpG.findNode(iEid);
+        //DEBUG_ASSERT(NULL != pstNode);
+        pstLf = mpG.findNode(iLfEid);
+        //DEBUG_ASSERT(NULL != pstLf);
+        pstRt = mpG.findNode(iRtEid);
+        //DEBUG_ASSERT(NULL != pstRt);
+
+        /*DEBUG_PRINTF("LOCAL (%d, %d) (%d, %d) k: %d %d %d %d layer: %d %d %d %d seSup: %d %d self: (%d, %d) k: %d layer: %d Sup: %d %d %d\n",
+                     pstLf->paXY.first, pstLf->paXY.second,
+                     pstRt->paXY.first, pstRt->paXY.second,
+                     pstLf->iTrussness, pstRt->iTrussness,
+                     v_t[iLfTpPid], v_t[iRtTpPid],
+                     pstLf->iLayer, pstRt->iLayer,
+                     v_L[iLfTpPid], v_L[iRtTpPid],
+                     pstLf->iSeSup, pstRt->iSeSup,
+                     pstNode->paXY.first, pstNode->paXY.second,
+                     pstNode->iTrussness, pstNode->iLayer,
+                     pstNode->iSeSup, pstNode->iKSup, pstNode->iKMSup);*/
+
+        int iOldMinK = COMMON_MIN(pstLf->iTrussness, pstRt->iTrussness);
+        iOldMinK = COMMON_MIN(iOldMinK, pstNode->iTrussness);
+        int iNewMinK = COMMON_MIN(v_t[iLfTpPid], v_t[iRtTpPid]);
+        iNewMinK = COMMON_MIN(iNewMinK, pstNode->iTrussness);
+
+        int iOldMinL = INT_MAX;
+        if (iOldMinK == pstLf->iTrussness)
+        {
+            iOldMinL = COMMON_MIN(iOldMinL, pstLf->iLayer);
+        }
+        if (iOldMinK == pstRt->iTrussness)
+        {
+            iOldMinL = COMMON_MIN(iOldMinL, pstRt->iLayer);
+        }
+        if (iOldMinK == pstNode->iTrussness)
+        {
+            iOldMinL = COMMON_MIN(iOldMinL, pstNode->iLayer);
+        }
+        int iNewMinL = INT_MAX;
+        if (iNewMinK == v_t[iLfTpPid])
+        {
+            iNewMinL = COMMON_MIN(iNewMinL, v_L[iLfTpPid]);
+        }
+        if (iNewMinK == v_t[iRtTpPid])
+        {
+            iNewMinL = COMMON_MIN(iNewMinL, v_L[iRtTpPid]);
+        }
+        if (iNewMinK == pstNode->iTrussness)
+        {
+            iNewMinL = COMMON_MIN(iNewMinL, pstNode->iLayer);
+        }
+
+        if (iOldMinK == pstNode->iTrussness)
+        {
+            if (iNewMinK == pstNode->iTrussness)
+            {
+                /* kSup not change */
+                if (iOldMinL == pstNode->iLayer)
+                {
+                    if (iNewMinL == pstNode->iLayer)
+                    {
+                        /* all not change */
+                    }
+                    else if (iNewMinL == pstNode->iLayer - 1)
+                    {
+                        /* LMSup not change, but SeSup change */
+                        pstNode->iSeSup--;
+                    }
+                    else
+                    {
+                        /* both LMSup and SeSup change */
+                        /*if (!pstNode->bInit)
+                        {
+                            mpG.init(pstNode->eid);
+                        }*/
+                        bChg = true;
+                        pstNode->iSeSup--;
+                        pstNode->iKMSup--;
+                    }
+                }
+                else if (iOldMinL == pstNode->iLayer - 1)
+                {
+                    /* no SeSup triangle */
+                    if (iNewMinL < pstNode->iLayer - 1)
+                    {
+                        /*if (!pstNode->bInit)
+                        {
+                            mpG.init(pstNode->eid);
+                        }*/
+                        pstNode->iKMSup--;
+                        bChg = true;
+                    }
+                }
+                else
+                {
+                    /* no SeSup and LMSup triangle */
+                }
+            }
+            else
+            {
+                /* kSup change */
+                /*if (!pstNode->bInit)
+                {
+                    mpG.init(pstNode->eid);
+                }*/
+                bChg = true;
+                pstNode->iKSup--;
+
+                if (iOldMinL == pstNode->iLayer)
+                {
+                    /* both LMSup and SeSup change */
+                    pstNode->iSeSup--;
+                    pstNode->iKMSup--;
+                }
+                else if (iOldMinL == pstNode->iLayer - 1)
+                {
+                    /* no SeSup triangle */
+                    pstNode->iKMSup--;
+                }
+                else
+                {
+                    /* no SeSup and LMSup triangle */
+                }
+            }
+        }
+        else
+        {
+            /* kSup not change */
+        }
+        if (bChg)
+        {
+            if (pstNode->iKSup + 2 < pstNode->iTrussness)
+            {
+                //pstNode->bCanQFlag = true;
+                vKSeed.push_back(pstNode->eid);
+            }
+            else if ((pstNode->iKMSup + 2 <= pstNode->iTrussness) && (1 < pstNode->iLayer))
+            {
+                //pstNode->bCanQFlag = true;
+                vLSeed.push_back(pstNode->eid);
+            }
+        }
+
+        /*DEBUG_PRINTF("LOCAL (%d, %d) k: %d layer: %d Sup: %d %d %d bool: %d\n",
+                     pstNode->paXY.first, pstNode->paXY.second,
+                     pstNode->iTrussness, pstNode->iLayer,
+                     pstNode->iSeSup, pstNode->iKSup, pstNode->iKMSup, pstNode->bCanQFlag);*/
+    }
+    for (int iTpId = 0; iTpId < i_N; ++iTpId)
+    {
+        int iEid = vNeibE[iTpId].eid;
+
+        pstNode = mpG.findNode(iEid);
+        //DEBUG_ASSERT(NULL != pstNode);
+        pstNode->bCanQFlag = false;
+        if (pstNode->iTrussness < v_t[iTpId])
+        {
+            printf("ERROR self: %d local: %d\n", pstNode->iTrussness, v_t[iTpId]);
+            printf("LOCAL neighbor error (%d, %d) k: %d layer: %d seSup: %d\n",
+                         pstNode->paXY.first, pstNode->paXY.second,
+                         pstNode->iTrussness, pstNode->iLayer,
+                         pstNode->iSeSup);
+            DEBUG_ASSERT(0);
+        }
+        /*DEBUG_PRINTF("LOCAL neighbor (%d, %d) k: %d %d layer: %d %d old Sup: %d %d %d new Sup: %d %d %d\n",
+                     pstNode->paXY.first, pstNode->paXY.second,
+                     pstNode->iTrussness, v_t[iTpId],
+                     pstNode->iLayer, v_L[iTpId],
+                     pstNode->iSeSup, pstNode->iKSup, pstNode->iKMSup,
+                     v_SeSup[iTpId], v_kSup[iTpId], v_LMSup[iTpId]);*/
+        if (pstNode->iTrussness > v_t[iTpId])
+        {
+            pstNode->iTrussness = v_t[iTpId];
+            ++g_lDeCnt;
+
+            //DEBUG_PRINTF("LOCAL_DEC decrease (%d, %d)\n", pstNode->paXY.first, pstNode->paXY.second);
+        }
+        pstNode->iLayer = v_L[iTpId];
+        pstNode->iSeSup = v_SeSup[iTpId];
+        pstNode->iKSup = v_kSup[iTpId];
+        pstNode->iKMSup = v_LMSup[iTpId];
+
+        if (1 < pstNode->iLayer)
+        {
+            if (pstNode->iKMSup + 2 <= pstNode->iTrussness)
+            {
+                printf("ERROR record k: %d L: %d\n", v_LMK[iTpId], v_LML[iTpId]);
+                DEBUG_ASSERT(0);
+            }
+        }
+
+    }
+
+    //DEBUG_PRINTF("LOCAL save end\n");
+    return 0;
+}
+
 /*****************
 input:
         myG &mpG
@@ -3537,10 +2602,10 @@ input:
 description:
         find up/low bound for p neighbor
 ******************/
-int delPart::singleEDec(myG &mpG, int iNode, int iRmNode)
+int delPart::singleEDec(myG &mpG, int iNode, int iRmNode, int *piRmEid, vector <int> &vKSeed, vector <int> &vLSeed)
 {
     /* pid, eid */
-    vector <int> vThirdE;
+    vector <uint32_t> vThirdE;
     vector <int>::iterator itE;
 
     vector <int> vTpChgKE;
@@ -3548,8 +2613,6 @@ int delPart::singleEDec(myG &mpG, int iNode, int iRmNode)
     vector <int> vTpChgLE;
     vector <int> vChgLE;
 
-    vector<int> vLfE;
-    vector<int> vRtE;
     TPST_MAP_BY_EID* pstNode = NULL;
 
 	struct timeval tv;
@@ -3566,114 +2629,121 @@ int delPart::singleEDec(myG &mpG, int iNode, int iRmNode)
         /* removed */
         return 0;
     }
-    if (!pstNode->bInit)
+    *piRmEid = pstNode->eid;
+    /*if (!pstNode->bInit)
     {
         mpG.init(pstNode->eid);
-    }
+    }*/
 
-    mpG.findNeb(pstNode->eid, vLfE, vRtE);
-    vThirdE = vLfE;
-    vThirdE.insert(vThirdE.end(), vRtE.begin(), vRtE.end());
+    vThirdE = pstNode->vLfE;
+    vThirdE.insert(vThirdE.end(), pstNode->vRtE.begin(), pstNode->vRtE.end());
     gettimeofday(&tv, NULL);
     lCurTime = tv.tv_sec * 1000000 + tv.tv_usec;
     g_lPreFindTime += lCurTime - lStartTime;
 
     gettimeofday(&tv, NULL);
     lStartTime = tv.tv_sec * 1000000 + tv.tv_usec;
-    simpleRm(mpG, pstNode->eid);
-    gettimeofday(&tv, NULL);
-    lCurTime = tv.tv_sec * 1000000 + tv.tv_usec;
-    g_lPreRmTime += lCurTime - lStartTime;
-
-    gettimeofday(&tv, NULL);
-    lStartTime = tv.tv_sec * 1000000 + tv.tv_usec;
     /* check condition in seed */
-    for (itE = vThirdE.begin(); itE != vThirdE.end(); ++itE)
+
+    vector <uint32_t>::iterator itLfE = pstNode->vLfE.begin();
+    vector <uint32_t>::iterator itRtE = pstNode->vRtE.begin();
+    for (; itLfE != pstNode->vLfE.end(); ++itLfE, ++itRtE)
     {
-        pstNode = mpG.findNode(*itE);
-        DEBUG_ASSERT(NULL != pstNode);
+        TPST_MAP_BY_EID *pstLf = mpG.findNode(*itLfE);
+        //DEBUG_ASSERT(NULL != pstLf);
+        TPST_MAP_BY_EID *pstRt = mpG.findNode(*itRtE);
+        //DEBUG_ASSERT(NULL != pstRt);
 
-        if (3 > pstNode->iTrussness)
+        /*DEBUG_PRINTF("SINGLE (%d, %d) (%d, %d) k: %d %d layer: %d %d left Sup: %d %d %d right Sup: %d %d %d self: (%d, %d) %d %d \n",
+                     pstLf->paXY.first, pstLf->paXY.second,
+                     pstRt->paXY.first, pstRt->paXY.second,
+                     pstLf->iTrussness, pstRt->iTrussness,
+                     pstLf->iLayer, pstRt->iLayer,
+                     pstLf->iSeSup, pstLf->iKSup, pstLf->iKMSup,
+                     pstRt->iSeSup, pstRt->iKSup, pstRt->iKMSup,
+                     pstNode->paXY.first, pstNode->paXY.second,
+                     pstNode->iTrussness, pstNode->iLayer);*/
+
+        int iMinK = COMMON_MIN(pstLf->iTrussness, pstRt->iTrussness);
+        iMinK = COMMON_MIN(iMinK, pstNode->iTrussness);
+        int iMinL = INT_MAX;
+        if (iMinK == pstLf->iTrussness)
         {
-            continue;
+            iMinL = COMMON_MIN(iMinL, pstLf->iLayer);
         }
-        if (pstNode->mpLfE.empty())
+        if (iMinK == pstRt->iTrussness)
         {
-            /* 2-truss */
-            pstNode->iTrussness = 2;
-            pstNode->iLayer = 1;
-            pstNode->iSeSup = 0;
-            pstNode->iKSup = 0;
-            pstNode->iKMSup = 0;
-            continue;
+            iMinL = COMMON_MIN(iMinL, pstRt->iLayer);
+        }
+        if (iMinK == pstNode->iTrussness)
+        {
+            iMinL = COMMON_MIN(iMinL, pstNode->iLayer);
         }
 
-        if (pstNode->iKSup + 2 < pstNode->iTrussness)
+        if (pstLf->iTrussness == iMinK)
         {
-            vTpChgKE.push_back(pstNode->eid);
-            /*DEBUG_PRINTF("BALL change k (%d, %d) k: %d Layer: %d SeSup: %d, kSup: %d kMSup: %d\n",
-                         pstNode->paXY.first, pstNode->paXY.second,
-                         pstNode->iTrussness,
-                         pstNode->iLayer, pstNode->iSeSup,
-                         pstNode->iKSup, pstNode->iKMSup);*/
+            /*if (!pstLf->bInit)
+            {
+                mpG.init(pstLf->eid);
+            }*/
+            pstLf->iKSup--;
+            if (pstLf->iLayer == iMinL)
+            {
+                pstLf->iKMSup--;
+                pstLf->iSeSup--;
+            }
+            else if (pstLf->iLayer - 1 == iMinL)
+            {
+                pstLf->iKMSup--;
+            }
+            if (pstLf->iKSup + 2 < pstLf->iTrussness)
+            {
+                vKSeed.push_back(pstLf->eid);
+            }
+            else if ((pstLf->iKMSup + 2 <= pstLf->iTrussness) && (1 < pstLf->iLayer))
+            {
+                vLSeed.push_back(pstLf->eid);
+            }
         }
-        else if ((pstNode->iKMSup + 2 <= pstNode->iTrussness) && (1 < pstNode->iLayer))
+        if (pstRt->iTrussness == iMinK)
         {
-            vTpChgLE.push_back(pstNode->eid);
-            /*DEBUG_PRINTF("BALL change layer (%d, %d) k: %d Layer: %d SeSup: %d, kSup: %d kMSup: %d\n",
-                         pstNode->paXY.first, pstNode->paXY.second,
-                         pstNode->iTrussness,
-                         pstNode->iLayer, pstNode->iSeSup,
-                         pstNode->iKSup, pstNode->iKMSup);*/
+            /*if (!pstRt->bInit)
+            {
+                mpG.init(pstRt->eid);
+            }*/
+            pstRt->iKSup--;
+            if (pstRt->iLayer == iMinL)
+            {
+                pstRt->iKMSup--;
+                pstRt->iSeSup--;
+            }
+            else if (pstRt->iLayer - 1 == iMinL)
+            {
+                pstRt->iKMSup--;
+            }
+            if (pstRt->iKSup + 2 < pstRt->iTrussness)
+            {
+                vKSeed.push_back(pstRt->eid);
+            }
+            else if ((pstRt->iKMSup + 2 <= pstRt->iTrussness) && (1 < pstRt->iLayer))
+            {
+                vLSeed.push_back(pstRt->eid);
+            }
         }
+        /*DEBUG_PRINTF("SINGLE after (%d, %d) (%d, %d) k: %d %d layer: %d %d left Sup: %d %d %d right Sup: %d %d %d self: (%d, %d) %d %d \n",
+                     pstLf->paXY.first, pstLf->paXY.second,
+                     pstRt->paXY.first, pstRt->paXY.second,
+                     pstLf->iTrussness, pstRt->iTrussness,
+                     pstLf->iLayer, pstRt->iLayer,
+                     pstLf->iSeSup, pstLf->iKSup, pstLf->iKMSup,
+                     pstRt->iSeSup, pstRt->iKSup, pstRt->iKMSup,
+                     pstNode->paXY.first, pstNode->paXY.second,
+                     pstNode->iTrussness, pstNode->iLayer);*/
     }
-
     gettimeofday(&tv, NULL);
     lCurTime = tv.tv_sec * 1000000 + tv.tv_usec;
     g_lAfterLocalTime += lCurTime - lStartTime;
 
-    gettimeofday(&tv, NULL);
-    lStartTime = tv.tv_sec * 1000000 + tv.tv_usec;
-    updateK(mpG, vTpChgKE, vChgKE);
-    gettimeofday(&tv, NULL);
-    lCurTime = tv.tv_sec * 1000000 + tv.tv_usec;
-    g_lUpdateKTime += lCurTime - lStartTime;
-
-    gettimeofday(&tv, NULL);
-    lStartTime = tv.tv_sec * 1000000 + tv.tv_usec;
-    recalL(mpG, vChgKE, vChgLE);
-    gettimeofday(&tv, NULL);
-    lCurTime = tv.tv_sec * 1000000 + tv.tv_usec;
-    g_lRecalLTime += lCurTime - lStartTime;
-
-    gettimeofday(&tv, NULL);
-    lStartTime = tv.tv_sec * 1000000 + tv.tv_usec;
-    for (int iEid : vTpChgLE)
-    {
-        pstNode = mpG.findNode(iEid);
-        DEBUG_ASSERT(NULL != pstNode);
-
-        if ((!pstNode->bDgdFlag) && (!pstNode->bCanQFlag))
-        {
-            vChgLE.push_back(iEid);
-            pstNode->bCanQFlag = true;
-        }
-    }
-    vector <int> vDoneLE;
-    //DEBUG_PRINTF("BALL start update layer\n");
-    updateL(mpG, vChgLE, vDoneLE);
-    gettimeofday(&tv, NULL);
-    lCurTime = tv.tv_sec * 1000000 + tv.tv_usec;
-    g_lUpdateLTime += lCurTime - lStartTime;
-
-    /* restore */
-    for (int iEid : vChgKE)
-    {
-        pstNode = mpG.findNode(iEid);
-        DEBUG_ASSERT(NULL != pstNode);
-
-        pstNode->bDgdFlag = false;
-    }
     return 0;
 }
 /*****************
@@ -3686,8 +2756,17 @@ description:
 ******************/
 int delPart::delOneNodePart(myG &mpG, map<int, vector <int> > &mpPrivate, int iNode)
 {
+    TPST_MAP_BY_EID* pstNode = NULL;
     map<int, vector <int> >::iterator itmpP;
     vector<int>::iterator itvTpP;
+
+    vector <int> vRmE;
+    vector <int> vKSeed;
+    vector <int> vLSeed;
+
+	struct timeval tv;
+	long lStartTime = 0;
+	long lCurTime = 0;
 
     DEBUG_ASSERT(iNode <= mpG.m_iMaxPId);
 
@@ -3701,14 +2780,80 @@ int delPart::delOneNodePart(myG &mpG, map<int, vector <int> > &mpPrivate, int iN
             return 0;
         }
         ++itvTpP;
+        gettimeofday(&tv, NULL);
+        lStartTime = tv.tv_sec * 1000000 + tv.tv_usec;
         if (itvTpP == itmpP->second.end())
         {
             /* single edge */
-            singleEDec(mpG, iNode, itmpP->second.front());
+            int iEid = 0;
+            singleEDec(mpG, iNode, itmpP->second.front(), &iEid, vKSeed, vLSeed);
+            vRmE.push_back(iEid);
         }
         else
         {
-            ballDec(mpG, iNode, itmpP->second);
+            localDec(mpG, iNode, mpG.m_vAdj[iNode], itmpP->second, vRmE, vKSeed, vLSeed);
+        }
+        gettimeofday(&tv, NULL);
+        lCurTime = tv.tv_sec * 1000000 + tv.tv_usec;
+        g_lLocalTime += lCurTime - lStartTime;
+
+        gettimeofday(&tv, NULL);
+        lStartTime = tv.tv_sec * 1000000 + tv.tv_usec;
+        for (int iEid : vRmE)
+        {
+            simpleRm(mpG, iEid);
+        }
+        gettimeofday(&tv, NULL);
+        lCurTime = tv.tv_sec * 1000000 + tv.tv_usec;
+        g_lPreRmTime += lCurTime - lStartTime;
+
+        gettimeofday(&tv, NULL);
+        lStartTime = tv.tv_sec * 1000000 + tv.tv_usec;
+        vector <int> vChgKE;
+        updateK(mpG, vKSeed, vChgKE);
+        gettimeofday(&tv, NULL);
+        lCurTime = tv.tv_sec * 1000000 + tv.tv_usec;
+        g_lUpdateKTime += lCurTime - lStartTime;
+
+        //DEBUG_PRINTF("BALL change K size: %d\n", vChgKE.size());
+
+        gettimeofday(&tv, NULL);
+        lStartTime = tv.tv_sec * 1000000 + tv.tv_usec;
+        vector <int> vLSeedByK;
+        recalL(mpG, vChgKE, vLSeedByK);
+        gettimeofday(&tv, NULL);
+        lCurTime = tv.tv_sec * 1000000 + tv.tv_usec;
+        g_lRecalLTime += lCurTime - lStartTime;
+
+        gettimeofday(&tv, NULL);
+        lStartTime = tv.tv_sec * 1000000 + tv.tv_usec;
+        for (int iEid : vLSeed)
+        {
+            pstNode = mpG.findNode(iEid);
+            DEBUG_ASSERT(NULL != pstNode);
+
+            if ((!pstNode->bDgdFlag) && (!pstNode->bCanQFlag))
+            {
+                vLSeedByK.push_back(iEid);
+                pstNode->bCanQFlag = true;
+            }
+        }
+
+        //DEBUG_PRINTF("BALL L seed size: %d\n", vLSeedByK.size());
+        vector <int> vDoneLE;
+        //DEBUG_PRINTF("BALL start update layer\n");
+        updateL(mpG, vLSeedByK, vDoneLE);
+        gettimeofday(&tv, NULL);
+        lCurTime = tv.tv_sec * 1000000 + tv.tv_usec;
+        g_lUpdateLTime += lCurTime - lStartTime;
+
+        /* restore */
+        for (int iEid : vChgKE)
+        {
+            pstNode = mpG.findNode(iEid);
+            DEBUG_ASSERT(NULL != pstNode);
+
+            pstNode->bDgdFlag = false;
         }
     }
     return 0;

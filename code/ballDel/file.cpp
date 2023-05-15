@@ -11,59 +11,7 @@ input file output file function
 #include "myG.h"
 #include "file.h"
 
-//extern char *g_pcDataLabel;
 int g_iOffset = 1;
-#if 0
-/*****************
-input:
-        char *szFileName
-        myG &mpG
-description:
-        read file and fill the list g_initG
-******************/
-int file_fillG(char *szFileName, myG &mpG)
-{
-    FILE *fp = NULL;
-    int iTempX = 0;
-    int iTempY = 0;
-    char szBuffer[ONE_LINE_BUFFER] = {0};
-    int iCnt = 0;
-
-    if (NULL == szFileName)
-    {
-        fp = fopen(DATA_PATH, "rt");
-    }
-    else
-    {
-        fp = fopen(szFileName, "rt");
-    }
-    if (NULL == fp)
-    {
-        printf("error no file: %s or %s\n", DATA_PATH, szFileName);
-        DEBUG_ASSERT(0);
-    }
-    while (fgets(szBuffer, ONE_LINE_BUFFER - 1, fp) > 0)
-    {
-        sscanf(szBuffer, "%d %d", &iTempX, &iTempY);
-        iTempX = g_iOffset + iTempX;
-        iTempY = g_iOffset + iTempY;
-        DEBUG_ASSERT(0 < iTempX);
-        DEBUG_ASSERT(0 < iTempY);
-
-        if (iTempX == iTempY)
-        {
-            continue;
-        }
-
-        //printf("DEBUG add new edge: (%d, %d)\n", iTempX, iTempY);
-        mpG.add(iTempX, iTempY);
-        ++iCnt;
-    }
-    printf("READ get edges: %d\n", iCnt);
-    fclose(fp);
-    return iCnt;
-}
-#endif
 /*****************
 input:
         char *szFileName
@@ -207,10 +155,10 @@ output:
 description:
         save truss decomposition
 ******************/
-int file_saveDeTruss(myG &oMpG, LIST_DECOMP_G &lstDeG, char *pcIndexFile)
+int file_saveDeTruss(myG &oMpG, map<int, vector<int> > &mpDeG, char *pcIndexFile)
 {
-    LIST_DECOMP_G::iterator itDeG;
-    list<TPST_DG_NODE>::iterator itlst;
+    map<int, vector<int> >::iterator itDeG;
+    vector<int>::iterator itvE;
     FILE *fp = NULL;
     pair<int, int> paXY;
 
@@ -222,12 +170,12 @@ int file_saveDeTruss(myG &oMpG, LIST_DECOMP_G &lstDeG, char *pcIndexFile)
         DEBUG_ASSERT(0);
     }
 
-    for (itDeG = lstDeG.begin(); itDeG != lstDeG.end(); itDeG++)
+    for (itDeG = mpDeG.begin(); itDeG != mpDeG.end(); itDeG++)
     {
-        fprintf(fp, "k,%d\n", itDeG->iTrussness);
-        for (itlst = itDeG->lsENode.begin(); itlst != itDeG->lsENode.end(); ++itlst)
+        fprintf(fp, "k,%d\n", itDeG->first);
+        for (itvE = itDeG->second.begin(); itvE != itDeG->second.end(); ++itvE)
         {
-            paXY = oMpG.findByEid(itlst->iEid);
+            paXY = oMpG.findByEid(*itvE);
             fprintf(fp, "%d,%d\n",
                     paXY.first - g_iOffset, paXY.second - g_iOffset);
 
@@ -249,40 +197,25 @@ description:
 ******************/
 int file_saveTrussness(myG &oMpG, char *pcIndexFile)
 {
-    LIST_DECOMP_G lstDeG;
-    int iDebugCnt = 0;
-    int iDebugNum = 100;
+    map<int, vector<int> > mpDeG;
     TPST_MAP_BY_EID *pstTpNode = NULL;
-    TPST_DECOMP_G stTpNode;
-    TPST_DG_NODE stENode;
 
-    map<int, list<TPST_DG_NODE> > mpTrussness;
-    map<int, list<TPST_DG_NODE> >::iterator itmpT;
-
-    for (int x = 1; x < oMpG.m_pvPNe->size(); ++x)
+    for (int eid = 1; eid <= oMpG.m_iMaxEId; ++eid)
     {
-        map<int, int>::iterator itLowB;
-        /* x < y */
-        itLowB = oMpG.m_pvPNe->at(x).upper_bound(x);
-        while (itLowB != oMpG.m_pvPNe->at(x).end())
+        pstTpNode = oMpG.findNode(eid);
+        DEBUG_ASSERT(NULL != pstTpNode);
+        if (eid != pstTpNode->eid)
         {
-            pstTpNode = oMpG.findNode(itLowB->second);
-            DEBUG_ASSERT(NULL != pstTpNode);
-            stENode.iEid = pstTpNode->eid;
-            mpTrussness[pstTpNode->iTrussness].push_back(stENode);
-            ++itLowB;
+            /* removed */
+            continue;
         }
+
+        mpDeG[pstTpNode->iTrussness].push_back(pstTpNode->eid);
     }
-    for (itmpT = mpTrussness.begin(); itmpT != mpTrussness.end(); itmpT++)
-    {
-        stTpNode.iTrussness = itmpT->first;
-        stTpNode.lsENode.swap(itmpT->second);
-        lstDeG.push_back(stTpNode);
-    }
-    file_saveDeTruss(oMpG, lstDeG, pcIndexFile);
+
+    file_saveDeTruss(oMpG, mpDeG, pcIndexFile);
     return 0;
 }
-#if 0
 /*****************
 input:
         myG &oMpG
@@ -292,94 +225,19 @@ output:
 description:
         save truss decomposition
 ******************/
-int file_saveG(myG &oMpG, char *szGPath, bool bFinal)
+int file_saveBitG(myG &oMpG, char *pcFile)
 {
-    vector<TPST_MAP_BY_EID>::iterator itDeG;
-    vector<int>::iterator itE;
-    FILE *fp = NULL;
-    char szFileName[FILE_NAME_BUFFER] = {0};
-
-    if (bFinal)
-    {
-        sprintf(szFileName, "%s/%s-result.myG", szGPath, g_pcDataLabel);
-    }
-    else
-    {
-        sprintf(szFileName, "%s/%s.myG", szGPath, g_pcDataLabel);
-    }
-    fp = fopen(szFileName, "wt");
-
-    if (NULL == fp)
-    {
-        printf("error write file: %s\n", szFileName);
-        DEBUG_ASSERT(0);
-    }
-
-    fprintf(fp, "c,%ld\n", oMpG.m_iMaxEId + 1000);
-    fprintf(fp, "P,%ld\n", oMpG.m_iMaxPId - g_iOffset);
-    fprintf(fp, "E,%ld\n", oMpG.m_iMaxEId);
-    fprintf(fp, "D,%ld\n", oMpG.m_iMaxD);
-    fprintf(fp, "K,%ld\n", oMpG.m_iMaxK);
-    for (itDeG = oMpG.m_pvG->begin(); itDeG != oMpG.m_pvG->end(); ++itDeG)
-    {
-        fprintf(fp, "n,%ld\n", itDeG->eid);
-        //fprintf(fp, "s,%d\n", itDeG->iSup);
-        //fprintf(fp, "J,%d\n", itDeG->iJuSup);
-        fprintf(fp, "S,%d\n", itDeG->iSeSup);
-        fprintf(fp, "t,%d\n", itDeG->iTrussness);
-        fprintf(fp, "L,%d\n", itDeG->iLayer);
-        //fprintf(fp, "a,%d\n", itDeG->iAlleyType);
-        fprintf(fp, "x,%d\n", itDeG->paXY.first - g_iOffset);
-        fprintf(fp, "y,%d\n", itDeG->paXY.second - g_iOffset);
-        /*for (itE = itDeG->vLfE.begin(); itE != itDeG->vLfE.end(); ++itE)
-        {
-            fprintf(fp, "l,%d\n", *itE);
-        }
-        for (itE = itDeG->vRtE.begin(); itE != itDeG->vRtE.end(); ++itE)
-        {
-            fprintf(fp, "r,%d\n", *itE);
-        }*/
-    }
-    fclose(fp);
-    fp = NULL;
-    return 0;
-}
-#endif
-/*****************
-input:
-        myG &oMpG
-        char *szGPath
-output:
-        none
-description:
-        save truss decomposition
-******************/
-int file_saveBitG(myG &oMpG, char *pcIndexFile)
-{
-    vector<TPST_MAP_BY_EID>::iterator itDeG;
-    vector<int>::iterator itE;
-    FILE *fp = NULL;
-
-    fp = fopen(pcIndexFile, "wt");
-
-    if (NULL == fp)
-    {
-        printf("error write file: %s\n", pcIndexFile);
-        DEBUG_ASSERT(0);
-    }
-
-    /* fill data */
     char sFirstLine[100] = {0};
     char *pcData = NULL;
     SaveEntry *pstData = NULL;
-    uint32_t uMaxBuffer = 100000000;
+    int uMaxBuffer = 100000000;
 
     pcData = (char *)malloc(oMpG.m_iMaxEId * sizeof(SaveEntry));
     DEBUG_ASSERT(NULL != pcData);
     pstData = (SaveEntry *)pcData;
     int iRealEid = 0;
     TPST_MAP_BY_EID *pstNode = NULL;
-    for (uint32_t eid = 1; eid <= oMpG.m_iMaxEId; ++eid)
+    for (int eid = 1; eid <= oMpG.m_iMaxEId; ++eid)
     {
         pstNode = oMpG.findNode(eid);
         if (eid != pstNode->eid)
@@ -404,27 +262,27 @@ int file_saveBitG(myG &oMpG, char *pcIndexFile)
             oMpG.m_iMaxK);
 
     /* write */
-    int fd = open(pcIndexFile, O_CREAT|O_WRONLY|O_TRUNC, 0644);
+    int fd = open(pcFile, O_CREAT|O_WRONLY|O_TRUNC, 0644);
 
     int ret = write(fd, sFirstLine, 100 * sizeof(char));
     DEBUG_ASSERT(100 == ret);
 
-    uint32_t uCurPos = 0;
-    uint32_t uTotoalSize = iRealEid * sizeof(SaveEntry);
-    uint32_t uStep = uTotoalSize;
-    while (uCurPos < uTotoalSize)
+    long long llCurPos = 0;
+    long long llTotoalSize = oMpG.m_iMaxEId * sizeof(SaveEntry);
+    long long uStep = llTotoalSize;
+    while (llCurPos < llTotoalSize)
     {
-        if (uStep < uMaxBuffer)
+        if (uStep <= uMaxBuffer)
         {
-            ret = write(fd, pcData + uCurPos, uStep * sizeof(char));
+            ret = write(fd, pcData + llCurPos, uStep * sizeof(char));
             DEBUG_ASSERT(uStep == ret);
-            uCurPos += uStep;
+            llCurPos += uStep;
 
-            uStep = uStep < (uTotoalSize - uCurPos)? uStep : (uTotoalSize - uCurPos);
+            uStep = uStep < (llTotoalSize - llCurPos)? uStep : (llTotoalSize - llCurPos);
         }
         else
         {
-            uStep /= 2;
+            uStep = uMaxBuffer;
             DEBUG_ASSERT(1 < uStep);
         }
     }
@@ -434,7 +292,6 @@ int file_saveBitG(myG &oMpG, char *pcIndexFile)
     pstData = NULL;
     return 0;
 }
-#if 0
 /*****************
 input:
         char *szFileName
@@ -442,134 +299,7 @@ input:
 description:
         read file and fill the list g_initG
 ******************/
-int file_readG(myG &oMpG, char *szGPath)
-{
-    FILE *fp = NULL;
-    int iTempX = 0;
-    int iTempY = 0;
-    int iCapacity = 0;
-    char cTpType;
-    char szBuffer[ONE_LINE_BUFFER] = {0};
-    int iCnt = 0;
-    int iEid = 0;
-    char szFileName[FILE_NAME_BUFFER] = {0};
-    TPST_MAP_BY_EID *pstTpNode = NULL;
-
-    sprintf(szFileName, "%s/%s.myG", szGPath, g_pcDataLabel);
-
-    fp = fopen(szFileName, "rt");
-
-    if (NULL == fp)
-    {
-        printf("error no file: %s or %s\n", DATA_PATH, szFileName);
-        DEBUG_ASSERT(0);
-    }
-    while (fgets(szBuffer, ONE_LINE_BUFFER - 1, fp) > 0)
-    {
-        sscanf(szBuffer, "%c,%ld", &cTpType, &iTempX);
-
-        switch(cTpType)
-        {
-            case 'c':
-                oMpG.m_pvG->clear();
-                if (iTempX > 0)
-                {
-                    oMpG.m_pvG->reserve(iTempX);
-                }
-                else
-                {
-                    /* invalid value */
-                    iCapacity = 0;
-                }
-                break;
-            case 'P':
-                iTempX = iTempX + g_iOffset;
-                oMpG.m_iMaxPId = iTempX;
-                oMpG.m_pvPNe->resize(iTempX + 1);
-                oMpG.m_pvPNeCnt->resize(iTempX + 1);
-                //printf("DEBUG get neighbor size: %d\n", iTempX);
-                break;
-            case 'E':
-                oMpG.m_iMaxEId = iTempX;
-                if (0 == iCapacity)
-                {
-                    /* set capacity by max EId */
-                    iCapacity = oMpG.m_iMaxEId + 1;
-                    oMpG.m_pvG->reserve(iCapacity);
-                }
-                break;
-            case 'D':
-                oMpG.m_iMaxD = iTempX;
-                break;
-            case 'K':
-                oMpG.m_iMaxK = iTempX;
-                break;
-            case 'n':
-                iEid = iTempX;
-                pstTpNode = oMpG.add(iEid);
-                ++iCnt;
-                break;
-            case 's':
-                //pstTpNode->iSup = iTempX;
-                break;
-            case 'J':
-                //pstTpNode->iJuSup = iTempX;
-                break;
-            case 'S':
-                pstTpNode->iSeSup = iTempX;
-                break;
-            case 't':
-                pstTpNode->iTrussness = iTempX;
-                break;
-            case 'L':
-                pstTpNode->iLayer = iTempX;
-                break;
-            case 'a':
-                //pstTpNode->iAlleyType = iTempX;
-                break;
-            case 'x':
-                iTempX = iTempX + g_iOffset;
-                pstTpNode->paXY.first = iTempX;
-                /*if (0 < iTempX)
-                {
-                    (*(oMpG.m_pvPNeCnt))[iTempX]++;
-                }*/
-                DEBUG_ASSERT(iTempX <= oMpG.m_iMaxPId);
-                break;
-            case 'y':
-                iTempX = iTempX + g_iOffset;
-                pstTpNode->paXY.second = iTempX;
-                if (0 < iTempX)
-                {
-                    //(*(oMpG.m_pvPNeCnt))[iTempX]++;
-                    /*oMpG.m_mpBasicG[pstTpNode->paXY] = pstTpNode->eid;
-                    oMpG.m_mpBasicG[pair<int, int>(pstTpNode->paXY.second, pstTpNode->paXY.first)] = pstTpNode->eid;*/
-                    oMpG.addNeibTri(pstTpNode->eid);
-                }
-                DEBUG_ASSERT(iTempX <= oMpG.m_iMaxPId);
-                break;
-            case 'l':
-                //pstTpNode->vLfE.push_back(iTempX);
-                break;
-            case 'r':
-                //pstTpNode->vRtE.push_back(iTempX);
-                break;
-            default:
-                printf("FILE ERROR %c\n", cTpType);
-        }
-    }
-    fclose(fp);
-    return iCnt;
-}
-#endif
-/*****************
-input:
-        char *szFileName
-        myG &mpG
-description:
-        read file and fill the list g_initG
-******************/
-int file_readBitG(myG &oMpG, char *pcIndexFile)
+int file_readBitG(myG &oMpG, char *pcFile)
 {
     int iCnt = 0;
     TPST_MAP_BY_EID stTpNode = {0};
@@ -577,11 +307,11 @@ int file_readBitG(myG &oMpG, char *pcIndexFile)
     char sFirstLine[100] = {0};
     char *pcData = NULL;
     SaveEntry *pstData = NULL;
-    uint32_t uMaxBuffer = 100000000;
+    int uMaxBuffer = 100000000;
     //printf("start save file %s\n", sFile);
 
     /* read */
-    int fd = open(pcIndexFile, O_RDONLY);
+    int fd = open(pcFile, O_RDONLY);
     DEBUG_ASSERT(-1 != fd);
     int ret = read(fd, sFirstLine, 100 * sizeof(char));
     DEBUG_ASSERT(100 == ret);
@@ -594,22 +324,26 @@ int file_readBitG(myG &oMpG, char *pcIndexFile)
     DEBUG_ASSERT(NULL != pcData);
     pstData = (SaveEntry *)pcData;
 
-    uint32_t uCurPos = 0;
-    uint32_t uTotoalSize = i_m * sizeof(SaveEntry);
-    uint32_t uStep = uTotoalSize;
-    while (uCurPos < uTotoalSize)
+    long long llCurPos = 0;
+    long long llTotoalSize = i_m * sizeof(SaveEntry);
+    long long uStep = llTotoalSize;
+    while (llCurPos < llTotoalSize)
     {
-        if (uStep < uMaxBuffer)
+        if (uStep <= uMaxBuffer)
         {
-            ret = read(fd, pcData + uCurPos, uStep * sizeof(char));
-            DEBUG_ASSERT(uStep == ret);
-            uCurPos += uStep;
+            ret = read(fd, pcData + llCurPos, uStep * sizeof(char));
+            if (uStep != ret)
+            {
+                printf("Error read %d get %d\n", uStep, ret);
+                DEBUG_ASSERT(0);
+            }
+            llCurPos += uStep;
 
-            uStep = uStep < (uTotoalSize - uCurPos)? uStep : (uTotoalSize - uCurPos);
+            uStep = uStep < (llTotoalSize - llCurPos)? uStep : (llTotoalSize - llCurPos);
         }
         else
         {
-            uStep /= 2;
+            uStep = uMaxBuffer;
             DEBUG_ASSERT(1 < uStep);
         }
     }
@@ -621,8 +355,7 @@ int file_readBitG(myG &oMpG, char *pcIndexFile)
     oMpG.m_pvG->reserve(i_c);
     i_P = i_P + g_iOffset;
     oMpG.m_iMaxPId = i_P;
-    oMpG.m_pvPNe->resize(i_P + 1);
-    oMpG.m_pvPNeCnt->resize(i_P + 1);
+    oMpG.m_vAdj.resize(i_P + 1);
     oMpG.m_iMaxEId = i_m;
     oMpG.m_iMaxD = i_D;
     oMpG.m_iMaxK = i_K;
@@ -647,16 +380,12 @@ int file_readBitG(myG &oMpG, char *pcIndexFile)
         DEBUG_ASSERT(x <= oMpG.m_iMaxPId);
         int y = pstData[i].y + g_iOffset;
         pstTpNode->paXY.second = y;
-        /*if (0 < y)
+        if (0 < y)
         {
-            oMpG.addNeibTri(pstTpNode->eid);
-        }*/
+            oMpG.m_vAdj[x].push_back({y, eid});
+            oMpG.m_vAdj[y].push_back({x, eid});
+        }
         DEBUG_ASSERT(y <= oMpG.m_iMaxPId);
-        (*oMpG.m_pvPNeCnt)[x]++;
-        (*oMpG.m_pvPNeCnt)[y]++;
-
-        (*oMpG.m_pvPNe)[x][y] = eid;
-        (*oMpG.m_pvPNe)[y][x] = eid;
     }
 
     free(pcData);

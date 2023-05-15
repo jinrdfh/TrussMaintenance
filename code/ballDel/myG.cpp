@@ -16,18 +16,103 @@ myG::myG()
 {
     TPST_MAP_BY_EID stTp = {0};
 
-    //m_mpBasicG.clear();
-    /*m_vG.clear();
-    m_vPNeCnt.clear();*/
-
-    m_pvPNe = new vector<map<int, int> >();
-    m_pvPNeCnt = new vector<int>();
     m_pvG = new vector<TPST_MAP_BY_EID>();
 
     m_iMaxPId = 0;
     m_iMaxEId = 0;
 
     m_pvG->push_back(stTp);
+}
+/*****************
+input:
+        none
+description:
+        init after add nodes
+******************/
+int myG::init()
+{
+    m_iInitCnt = 0;
+    for (int vid = 1; vid <= m_iMaxPId; ++vid)
+    {
+        sort(m_vAdj[vid].begin(), m_vAdj[vid].end(),
+            [](const AdjEntry& e1, const AdjEntry& e2) {
+            return e1.pid < e2.pid;
+            });
+    }
+
+    // init iKSup iKMSup
+    TPST_MAP_BY_EID* pstNode = NULL;
+    vector<uint32_t>::iterator itLfE;
+    vector<uint32_t>::iterator itRtE;
+    int x = 0;
+    int y = 0;
+    int iMinT = 0;
+    int iMinL = 0;
+
+    for (int iEid = 1; iEid <= m_iMaxEId; ++iEid)
+    {
+        /* add and init */
+        DEBUG_ASSERT(0 != iEid);
+        pstNode = findNode(iEid);
+        DEBUG_ASSERT(NULL != pstNode);
+        DEBUG_ASSERT(iEid == pstNode->eid);
+        x = pstNode->paXY.first;
+        y = pstNode->paXY.second;
+
+        pstNode->iKSup = 0;
+        pstNode->iKMSup = 0;
+
+        pstNode->vLfE.clear();
+        pstNode->vRtE.clear();
+        findNeb(x, y, pstNode->vLfE, pstNode->vRtE);
+
+        pstNode->vKLfE.resize(pstNode->vLfE.size());
+        pstNode->vKRtE.resize(pstNode->vRtE.size());
+
+        itLfE = pstNode->vLfE.begin();
+        itRtE = pstNode->vRtE.begin();
+        for (; itLfE != pstNode->vLfE.end(); ++itLfE, ++itRtE)
+        {
+            TPST_MAP_BY_EID* pstLfNode = NULL;
+            TPST_MAP_BY_EID* pstRtNode = NULL;
+
+            pstLfNode = findNode(*itLfE);
+            DEBUG_ASSERT(NULL != pstLfNode);
+            pstRtNode = findNode(*itRtE);
+            DEBUG_ASSERT(NULL != pstRtNode);
+
+            iMinT = COMMON_MIN(pstLfNode->iTrussness, pstRtNode->iTrussness);
+            iMinT = COMMON_MIN(iMinT, pstNode->iTrussness);
+            iMinL = INT_MAX;
+            if (iMinT == pstNode->iTrussness)
+            {
+                iMinL = COMMON_MIN(iMinL, pstNode->iLayer);
+            }
+            if (iMinT == pstLfNode->iTrussness)
+            {
+                iMinL = COMMON_MIN(iMinL, pstLfNode->iLayer);
+            }
+            if (iMinT == pstRtNode->iTrussness)
+            {
+                iMinL = COMMON_MIN(iMinL, pstRtNode->iLayer);
+            }
+
+            if (iMinT == pstNode->iTrussness)
+            {
+                pstNode->iKSup++;
+                if (iMinL == pstNode->iLayer)
+                {
+                    pstNode->iKMSup++;
+                }
+                else if (iMinL == pstNode->iLayer - 1)
+                {
+                    pstNode->iKMSup++;
+                }
+            }
+        }
+    }
+
+    return 0;
 }
 /*****************
 input:
@@ -38,18 +123,9 @@ description:
 ******************/
 myG::~myG()
 {
-    //m_mpBasicG.clear();
-
-    m_iMaxPId = 0;
-    m_iMaxEId = 0;
-
-    m_pvPNe->clear();
-    m_pvPNeCnt->clear();
-
     m_pvG->clear();
+    m_vAdj.clear();
 
-    delete m_pvPNe;
-    delete m_pvPNeCnt;
     delete m_pvG;
 }
 
@@ -85,100 +161,11 @@ TPST_MAP_BY_EID *myG::add(int iEid)
     DEBUG_ASSERT(iEid == pstNode->eid);
 
     pstNode->bDgdFlag = false;
-    pstNode->bInit = false;
+    //pstNode->bInit = false;
+    pstNode->bLInit = false;
     return pstNode;
 }
-#if 0
-/*****************
-input:
-        int x
-        int y
-        long double ldP
-description:
-        add new edge
-        init stage
-******************/
-int myG::add(int x, int y)
-{
-    int u = 0;
-    int v = 0;
-    int iPrevMaxPid = m_iMaxPId;
-    TPST_MAP_BY_EID *pstNode = NULL;
-    if (m_iMaxPId < x)
-    {
-        m_iMaxPId = x;
-    }
-    if (m_iMaxPId < y)
-    {
-        m_iMaxPId = y;
-    }
-    if (iPrevMaxPid < m_iMaxPId)
-    {
-        /* max pid change */
-        m_pvPNe->resize(m_iMaxPId + 1);
-        m_pvPNeCnt->resize(m_iMaxPId + 1);
-    }
 
-    u = x;
-    v = y;
-    if ((*m_pvPNeCnt)[x] > (*m_pvPNeCnt)[y])
-    {
-        u = y;
-        v = x;
-    }
-
-    if ((*m_pvPNe)[u].find(v) != (*m_pvPNe)[u].end())
-    {
-        /* record */
-        return 0;
-    }
-
-    m_iMaxEId++;
-    (*m_pvPNeCnt)[x]++;
-    (*m_pvPNeCnt)[y]++;
-
-    if ((*m_pvPNeCnt)[x] > m_iMaxD)
-    {
-        m_iMaxD = (*m_pvPNeCnt)[x];
-        m_iDensePId = x;
-    }
-    if ((*m_pvPNeCnt)[y] > m_iMaxD)
-    {
-        m_iMaxD = (*m_pvPNeCnt)[y];
-        m_iDensePId = y;
-    }
-    (*m_pvPNe)[u][v] = m_iMaxEId;
-    (*m_pvPNe)[v][u] = m_iMaxEId;
-
-    TPST_MAP_BY_EID stTp = {0};
-
-    /*MAP_BASIC_G::iterator itGNode;
-
-    itGNode = m_mpBasicG.find(pair<int, int>(x, y));
-    if (itGNode != m_mpBasicG.end())
-    {
-        printf("DEBUG has joined\n");
-        return 0;
-    }
-
-    m_mpBasicG[pair<int, int>(x, y)] = m_iMaxEId;
-    m_mpBasicG[pair<int, int>(y, x)] = m_iMaxEId;*/
-
-    stTp.eid = m_iMaxEId;
-    stTp.paXY = myG_getPair(x, y);
-
-    m_pvG->push_back(stTp);
-
-    /* check right position */
-    DEBUG_ASSERT(m_iMaxEId == (*m_pvG)[m_iMaxEId].eid);
-
-    pstNode = &((*(m_pvG))[m_iMaxEId]);
-
-    pstNode->iSup = 0;
-
-    return m_iMaxEId;
-}
-#endif
 /*****************
 input:
         int iEid
@@ -198,166 +185,37 @@ int myG::rm(int iEid)
     x = pstNode->paXY.first;
     y = pstNode->paXY.second;
 
-    /*m_mpBasicG.erase(pair<int, int>(x, y));
-    m_mpBasicG.erase(pair<int, int>(y, x));*/
-    (*m_pvPNe)[x].erase(y);
-    (*m_pvPNe)[y].erase(x);
+    /* remove adj information */
+    vector<AdjEntry>::iterator it = lower_bound(m_vAdj[x].begin(), m_vAdj[x].end(), y,
+              [](const AdjEntry& e, int tpPid) {
+                return e.pid < tpPid;
+              });
+    if ((m_vAdj[x].end() != it) && (it->pid == y))
+    {
+        m_vAdj[x].erase(it);
+    }
+    else
+    {
+        DEBUG_ASSERT(0);
+    }
+    it = lower_bound(m_vAdj[y].begin(), m_vAdj[y].end(), x,
+              [](const AdjEntry& e, int tpPid) {
+                return e.pid < tpPid;
+              });
+    if ((m_vAdj[y].end() != it) && (it->pid == x))
+    {
+        m_vAdj[y].erase(it);
+    }
+    else
+    {
+        DEBUG_ASSERT(0);
+    }
 
     pstNode->eid = 0;
 
-    (*m_pvPNeCnt)[x]--;
-    (*m_pvPNeCnt)[y]--;
-
     return 0;
 }
-#if 0
-/*****************
-input:
-        myG &mpG
-        int iEid
-description:
-        simply add
-******************/
-int myG::addNeibTri(int iEid)
-{
-    TPST_MAP_BY_EID* pstNode = NULL;
-    vector<int> vLfE;
-    vector<int> vRtE;
-    vector<int>::iterator itLfE;
-    vector<int>::iterator itRtE;
-    int x = 0;
-    int y = 0;
-    int iMinT = 0;
-    int iMinL = 0;
-
-    /* add and init */
-    DEBUG_ASSERT(0 != iEid);
-    pstNode = findNode(iEid);
-    DEBUG_ASSERT(NULL != pstNode);
-    x = pstNode->paXY.first;
-    y = pstNode->paXY.second;
-
-    (*m_pvPNeCnt)[x]++;
-    (*m_pvPNeCnt)[y]++;
-
-    (*m_pvPNe)[x][y] = iEid;
-    (*m_pvPNe)[y][x] = iEid;
-
-    pstNode->iKSup = 0;
-
-    findNeb(x, y, vLfE, vRtE);
-
-    itLfE = vLfE.begin();
-    itRtE = vRtE.begin();
-    for (; itLfE != vLfE.end(); ++itLfE, ++itRtE)
-    {
-        TPST_MAP_BY_EID* pstLfNode = NULL;
-        TPST_MAP_BY_EID* pstRtNode = NULL;
-
-        pstLfNode = findNode(*itLfE);
-        DEBUG_ASSERT(NULL != pstLfNode);
-        pstRtNode = findNode(*itRtE);
-        DEBUG_ASSERT(NULL != pstRtNode);
-
-        pstNode->mpLfE[pstLfNode->eid] = pstRtNode->eid;
-        pstNode->mpRtE[pstRtNode->eid] = pstLfNode->eid;
-
-        if (pstLfNode->paXY.first == x)
-        {
-            /* z > x */
-            /*pstLfNode->vLfE.push_back(iEid);
-            pstLfNode->vRtE.push_back(*itRtE);*/
-
-            pstLfNode->mpLfE[iEid] = pstRtNode->eid;
-            pstLfNode->mpRtE[pstRtNode->eid] = iEid;
-        }
-        else
-        {
-            /* z < x */
-            /*pstLfNode->vLfE.push_back(*itRtE);
-            pstLfNode->vRtE.push_back(iEid);*/
-
-            pstLfNode->mpRtE[iEid] = pstRtNode->eid;
-            pstLfNode->mpLfE[pstRtNode->eid] = iEid;
-        }
-        if (pstRtNode->paXY.first == y)
-        {
-            /* z > y */
-            /*pstRtNode->vLfE.push_back(iEid);
-            pstRtNode->vRtE.push_back(*itLfE);*/
-
-            pstRtNode->mpLfE[iEid] = pstLfNode->eid;
-            pstRtNode->mpRtE[pstLfNode->eid] = iEid;
-        }
-        else
-        {
-            /* z < x */
-            /*pstRtNode->vLfE.push_back(*itLfE);
-            pstRtNode->vRtE.push_back(iEid);*/
-
-            pstRtNode->mpRtE[iEid] = pstLfNode->eid;
-            pstRtNode->mpLfE[pstLfNode->eid] = iEid;
-        }
-        iMinT = COMMON_MIN(pstLfNode->iTrussness, pstRtNode->iTrussness);
-        iMinT = COMMON_MIN(iMinT, pstNode->iTrussness);
-        iMinL = INT_MAX;
-        if (iMinT == pstNode->iTrussness)
-        {
-            iMinL = COMMON_MIN(iMinL, pstNode->iLayer);
-        }
-        if (iMinT == pstLfNode->iTrussness)
-        {
-            iMinL = COMMON_MIN(iMinL, pstLfNode->iLayer);
-        }
-        if (iMinT == pstRtNode->iTrussness)
-        {
-            iMinL = COMMON_MIN(iMinL, pstRtNode->iLayer);
-        }
-
-        if (iMinT == pstNode->iTrussness)
-        {
-            pstNode->iKSup++;
-            if (iMinL == pstNode->iLayer)
-            {
-                pstNode->iKMSup++;
-            }
-            else if (iMinL == pstNode->iLayer - 1)
-            {
-                pstNode->iKMSup++;
-            }
-        }
-
-        if (iMinT == pstLfNode->iTrussness)
-        {
-            pstLfNode->iKSup++;
-            if (iMinL == pstLfNode->iLayer)
-            {
-                pstLfNode->iKMSup++;
-            }
-            else if (iMinL == pstLfNode->iLayer - 1)
-            {
-                pstLfNode->iKMSup++;
-            }
-        }
-
-        if (iMinT == pstRtNode->iTrussness)
-        {
-            pstRtNode->iKSup++;
-            if (iMinL == pstRtNode->iLayer)
-            {
-                pstRtNode->iKMSup++;
-            }
-            else if (iMinL == pstRtNode->iLayer - 1)
-            {
-                pstRtNode->iKMSup++;
-            }
-        }
-    }
-    DEBUG_ASSERT(itRtE == vRtE.end());
-
-    return iEid;
-}
-#endif
+# if 0
 /*****************
 input:
         myG &mpG
@@ -367,80 +225,26 @@ description:
 ******************/
 int myG::init(int iEid)
 {
-    TPST_MAP_BY_EID* pstNode = NULL;
-    vector<int> vLfE;
-    vector<int> vRtE;
-    vector<int>::iterator itLfE;
-    vector<int>::iterator itRtE;
-    int x = 0;
-    int y = 0;
-    int iMinT = 0;
-    int iMinL = 0;
+    ++m_iInitCnt;
 
     /* add and init */
-    DEBUG_ASSERT(0 != iEid);
-    pstNode = findNode(iEid);
+    TPST_MAP_BY_EID* pstNode = findNode(iEid);
     DEBUG_ASSERT(NULL != pstNode);
-    x = pstNode->paXY.first;
-    y = pstNode->paXY.second;
+    int x = pstNode->paXY.first;
+    int y = pstNode->paXY.second;
 
-    pstNode->iKSup = 0;
-    pstNode->iKMSup = 0;
     pstNode->bInit = true;
 
-    findNeb(x, y, vLfE, vRtE);
-
-    itLfE = vLfE.begin();
-    itRtE = vRtE.begin();
-    for (; itLfE != vLfE.end(); ++itLfE, ++itRtE)
-    {
-        TPST_MAP_BY_EID* pstLfNode = NULL;
-        TPST_MAP_BY_EID* pstRtNode = NULL;
-
-        pstLfNode = findNode(*itLfE);
-        DEBUG_ASSERT(NULL != pstLfNode);
-        pstRtNode = findNode(*itRtE);
-        DEBUG_ASSERT(NULL != pstRtNode);
-
-        pstNode->mpLfE[pstLfNode->eid] = pstRtNode->eid;
-        //pstNode->mpRtE[pstRtNode->eid] = pstLfNode->eid;
-
-        iMinT = COMMON_MIN(pstLfNode->iTrussness, pstRtNode->iTrussness);
-        iMinT = COMMON_MIN(iMinT, pstNode->iTrussness);
-        iMinL = INT_MAX;
-        if (iMinT == pstNode->iTrussness)
-        {
-            iMinL = COMMON_MIN(iMinL, pstNode->iLayer);
-        }
-        if (iMinT == pstLfNode->iTrussness)
-        {
-            iMinL = COMMON_MIN(iMinL, pstLfNode->iLayer);
-        }
-        if (iMinT == pstRtNode->iTrussness)
-        {
-            iMinL = COMMON_MIN(iMinL, pstRtNode->iLayer);
-        }
-
-        if (iMinT == pstNode->iTrussness)
-        {
-            pstNode->iKSup++;
-            if (iMinL == pstNode->iLayer)
-            {
-                pstNode->iKMSup++;
-            }
-            else if (iMinL == pstNode->iLayer - 1)
-            {
-                pstNode->iKMSup++;
-            }
-        }
-    }
-    //DEBUG_ASSERT(itRtE == vRtE.end());
-    /*DEBUG_PRINTF("INIT (%d, %d) k: %d layer: %d KMSup: %d\n",
-           pstNode->paXY.first, pstNode->paXY.second, pstNode->iTrussness,
-           pstNode->iLayer, pstNode->iKMSup);*/
+    int iMinD = COMMON_MIN(m_vAdj[x].size(), m_vAdj[y].size());
+    pstNode->vLfE.clear();
+    pstNode->vRtE.clear();
+    pstNode->vLfE.reserve(iMinD);
+    pstNode->vRtE.reserve(iMinD);
+    findNeb(x, y, pstNode->vLfE, pstNode->vRtE);
 
     return iEid;
 }
+#endif
 /*****************
 input:
         int x
@@ -450,50 +254,70 @@ input:
 description:
         find neighbor eid
 ******************/
-int myG::findNeb(int x, int y, vector<int> &vLfE, vector<int> &vRtE)
+/*int myG::findNeb(int x, int y, vector<int> &vLfE, vector<int> &vRtE)
 {
-    map<int, int>::iterator itP;
-    int iNebCnt = 0;
-    /* nei(u) < nei(v) */
-    int u = 0;
-    int v = 0;
-    int w = 0;
-
-    vector<int> * pvLfE = &vLfE;
-    vector<int> * pvRtE = &vRtE;
-
-    DEBUG_ASSERT(x < y);
-    DEBUG_ASSERT(vLfE.empty());
-    DEBUG_ASSERT(vRtE.empty());
-
-    if ((*m_pvPNeCnt)[x] < (*m_pvPNeCnt)[y])
+    size_t p1 = 0, p2 = 0;
+    while (p1 < m_vAdj[x].size() && p2 < m_vAdj[y].size())
     {
-        u = x;
-        v = y;
+        if (m_vAdj[x][p1].pid == m_vAdj[y][p2].pid)
+        {
+            vLfE.push_back(m_vAdj[x][p1].eid);
+            vRtE.push_back(m_vAdj[y][p2].eid);
+            ++p1; ++p2;
+        }
+        else if (m_vAdj[x][p1].pid < m_vAdj[y][p2].pid)
+        {
+            ++p1;
+        }
+        else
+        {
+            ++p2;
+        }
     }
-    else
+
+    return vLfE.size();
+}*/
+int myG::findNeb(int x, int y, vector<uint32_t> &vLfE, vector<uint32_t> &vRtE)
+{
+    int u = x;
+    int v = y;
+    if (m_vAdj[x].size() > m_vAdj[y].size())
     {
         u = y;
         v = x;
-        pvLfE = &vRtE;
-        pvRtE = &vLfE;
     }
-
-    /* find u's neighbor , note u > 0 */
-
-    for (itP = (*m_pvPNe)[u].begin(); itP != (*m_pvPNe)[u].end(); ++itP)
+    vector<AdjEntry>::iterator itNext = m_vAdj[v].begin();
+    for (int i = 0; i < m_vAdj[u].size(); ++i)
     {
-        w = itP->first;
-        map<int, int>::iterator itDesP = (*m_pvPNe)[v].find(w);
-        if (itDesP != (*m_pvPNe)[v].end())
+        int w = m_vAdj[u][i].pid;
+
+        auto prc_info = std::lower_bound(itNext, m_vAdj[v].end(), w,
+            [](const AdjEntry& info, int value)
+            {
+                return info.pid < value;
+            });
+        if (prc_info == m_vAdj[v].end())
         {
-            pvLfE->push_back(itP->second);
-            pvRtE->push_back(itDesP->second);
-            iNebCnt++;
+            // end
+            break;
+        }
+        else if (w == prc_info->pid)
+        {
+            // found
+            vLfE.push_back(m_vAdj[u][i].eid);
+            vRtE.push_back(prc_info->eid);
+            itNext = ++prc_info;
+        }
+        else
+        {
+            // not found
+            itNext = prc_info;
         }
     }
-    return iNebCnt;
+
+    return vLfE.size();
 }
+#if 0
 /*****************
 input:
         int x
@@ -639,43 +463,7 @@ int myG::findPNebPTrdE(int iNodeId, vector <pair<int, int> > &vNeibP, vector <in
     }
     return iCnt;
 }
-
-/*****************
-input:
-        int iNodeId
-        list<int> &lstP
-        MAP_BASIC_G &mapCalG
-description:
-        find node's neighbor node
-******************/
-int myG::findPNebP(int iNodeId, vector <pair<int, int> > &vNeibP, MAP_BASIC_G &mapCalG)
-{
-    MAP_BASIC_G::iterator itLowB;
-    MAP_BASIC_G::iterator itHighB;
-    int iCnt = 0;
-    int u = 0;
-    int w = 0;
-
-    u = iNodeId;
-
-    DEBUG_ASSERT(vNeibP.empty());
-    /* find u's neighbor , note u > 0 */
-    itLowB = mapCalG.upper_bound(pair<int, int>(u, 0));
-    itHighB = mapCalG.upper_bound(pair<int, int>(u + 1, 0));
-    while (itLowB != itHighB)
-    {
-        w = itLowB->first.second;
-        int iCurK = itLowB->second;
-
-        vNeibP.push_back(pair<int, int>(w, iCurK));
-        ++iCnt;
-
-        ++itLowB;
-    }
-
-    return iCnt;
-}
-
+#endif
 /*****************
 input:
         int x
@@ -685,33 +473,34 @@ description:
 ******************/
 TPST_MAP_BY_EID * myG::findNode(int x, int y)
 {
-    map<int, int>::iterator itP;
-    /* nei(u) < nei(v) */
-    int u = 0;
-    int v = 0;
-
-    if ((*m_pvPNeCnt)[x] < (*m_pvPNeCnt)[y])
+    int iEid = 0;
+    if (m_vAdj[x].empty())
     {
-        u = x;
-        v = y;
-    }
-    else
-    {
-        u = y;
-        v = x;
-    }
-    int eid = 0;
-
-    itP = (*m_pvPNe)[u].find(v);
-    if (itP == (*m_pvPNe)[u].end())
-    {
-        printf("ERROR MYG no edge (%d, %d)\n", x, y);
-        DEBUG_ASSERT(0);
         return NULL;
     }
-    eid = itP->second;
-    //printf("MYG (%d, %d), eid: %d\n", x, y, eid);
-    return findNode(eid);
+    if (m_vAdj[y].empty())
+    {
+        return NULL;
+    }
+    /* the minimum degree */
+    vector<AdjEntry> *pv = &(m_vAdj[x]);
+    int v = y;
+    if (m_vAdj[x].size() > m_vAdj[y].size())
+    {
+        pv = &(m_vAdj[y]);
+        v = x;
+    }
+
+    vector<AdjEntry>::iterator it = lower_bound(pv->begin(), pv->end(), v,
+              [](const AdjEntry& e, int tpPid) {
+                return e.pid < tpPid;
+              });
+    if ((it != pv->end()) && (it->pid == v))
+    {
+        iEid = it->eid;
+        return findNode(iEid);
+    }
+    return NULL;
 }
 
 

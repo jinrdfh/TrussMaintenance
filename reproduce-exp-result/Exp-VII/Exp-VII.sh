@@ -1,44 +1,38 @@
-datasets=(test)
-indexEnd=1
-batNum=10
+datasets=(Orkut Wise)
+# datasets=(Deezer)
+subGraphLs=(graph_0_2 graph_0_4 graph_0_6 graph_0_8 graph_1_0)
+batNum=100
 
 output="Exp-VII.csv"
-true > $output
+
+header="Varying |E|,20%,,,40%,,,60%,,,80%,,,100%"
+echo $header > $output
+header="Graph,Insertion,Deletion,Decomposition,Insertion,Deletion,Decomposition,Insertion,Deletion,Decomposition,Insertion,Deletion,Decomposition,Insertion,Deletion,Decomposition"
+echo $header >> $output
 
 for dataset in ${datasets[@]}
 do
-	header="Timestamps,Ours,Order,Decomposition"
-	echo $header >> $output
-
-	#  generate queries
-	cd query/
-	python ../addTime.py ../$dataset.txt ../info.txt $indexEnd $batNum >/dev/null
-	cd ..
-
-	# build index
-	cp query/0.txt graph.txt
-	# ours         
-	./G2Ours.sh graph.txt graph.myG >/dev/null         
-	# Order         
-	./G2Order.sh graph.txt graph.order >/dev/null
-
-	for i in $( seq 1 $batNum )
+	python divideG.py ../data/$dataset".txt" graph
+	cp ../data/$dataset".txt" ./graph_1_0.txt
+	resultLine="$dataset"
+	for subgraph in ${subGraphLs[@]}
 	do
+	# insertion
+	# generate queries
+	./randomPs.sh ./$subgraph".txt" oldGraph.txt $batNum >/dev/null
 	# ours
-	ourIncT=`./runOursInc.sh graph.myG $i result.myG`
-	# Order
-	OrderIncT=`./runOrderInc.sh graph.order $i`
+	./G2Ours.sh oldGraph.txt oldGraph.myG >/dev/null
+	ourIncT=`./avgOursInc.sh oldGraph.myG $batNum`
 
-	# i+1 index
+	# deletion
 	# ours
-	mv result.myG graph.myG
-	# Order
-	cat query/$i.txt >> graph.txt
-	OrderIndexT=`./G2Order.sh graph.txt graph.order | grep Index | awk '{print $3}' | sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g"`
-	
+	ourIndexT=`./G2Ours.sh ./$subgraph".txt" graph.myG | grep Index | awk '{print $3}' | sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g"`
+	ourIndexT=`echo "scale=3; $ourIndexT/1000" | bc`
+	ourDecT=`./avgOursDec.sh graph.myG $batNum`
+
 	# save
-	resultLine=$i,$ourIncT,$OrderIncT,$OrderIndexT
-	echo $resultLine >> $output
+	resultLine=$resultLine,$ourIncT,$ourDecT,$ourIndexT
 	done
+	echo $resultLine >> $output
 done
-rm graph.txt graph.myG graph.order
+rm *.txt oldGraph.myG graph.myG 

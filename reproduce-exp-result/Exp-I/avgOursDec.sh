@@ -1,6 +1,6 @@
 indexFile=$1
-batchNum=$2
-queryPath="query/"
+queryPath=$2
+batchNum=$3
 logFile="log.txt"
 
 totalT=0

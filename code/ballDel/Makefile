@@ -4,7 +4,7 @@ CC=g++ -O3 --std=c++0x
 
 file = file.o file.h
 delPart = delPart.o delPart.h
-common = common.h tool/debug.h tool/myIntAHash.h tool/myAHash.h tool/myPriQueue.h graph.h
+common = common.h tool/debug.h tool/myIntAHash.h tool/myAHash.h tool/myPriQueue.h 
 myG = myG.o myG.h
 
 ballDel: ballDel.o $(common) $(file) $(myG) $(delPart)

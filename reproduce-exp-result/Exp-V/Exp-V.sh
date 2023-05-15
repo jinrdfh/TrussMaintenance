@@ -1,37 +1,42 @@
-datasets=(deezer_RO amazon)
-subGraphLs=(graph_0_2 graph_0_4 graph_0_6 graph_0_8 graph_1_0)
+# dataset name, only two small datasets here
+datasets=(Deezer Amazon DBLP Skitter Patents Pokec LJ Orkut Wise)
+# datasets=(Deezer)
+# repeat times
 batNum=100
-
+# output file name
 output="Exp-V.csv"
-
-header=",20%,,,40%,,,60%,,,80%,,,100%"
+# table head
+header=",Insertion (ms),,,Deletion (ms),,,"
 echo $header > $output
-header="Graph,Ours(inc),Ours(dec),Decomposition,Ours(inc),Ours(dec),Decomposition,Ours(inc),Ours(dec),Decomposition,Ours(inc),Ours(dec),Decomposition,Ours(inc),Ours(dec),Decomposition"
+header="Graph,XH,Order,Ours,XH,Order,Ours"
 echo $header >> $output
 
 for dataset in ${datasets[@]}
 do
-	python divideG.py ../$dataset".txt" graph
-	cp ../$dataset".txt" ./graph_1_0.txt
-	resultLine="$dataset"
-	for subgraph in ${subGraphLs[@]}
-	do
 	# insertion
 	# generate queries
-	./randomPs.sh ./$subgraph".txt" oldGraph.txt $batNum >/dev/null
+	./randomPs.sh ../data/$dataset".txt" oldGraph.txt 1 $batNum >/dev/null
 	# ours
 	./G2Ours.sh oldGraph.txt oldGraph.myG >/dev/null
 	ourIncT=`./avgOursInc.sh oldGraph.myG $batNum`
+	# XH
+	./G2XH.sh oldGraph.txt >/dev/null
+	XHIncT=`./avgXHInc.sh $batNum`
+	# Order
+	./G2Order.sh oldGraph.txt oldGraph.order >/dev/null
+	OrderIncT=`./avgOrderInc.sh oldGraph.order $batNum`
 
 	# deletion
 	# ours
-	ourIndexT=`./G2Ours.sh ./$subgraph".txt" graph.myG | grep Index | awk '{print $3}' | sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g"`
-	ourIndexT=`echo "scale=3; $ourIndexT/1000" | bc`
-	ourDecT=`./avgOursDec.sh graph.myG $batNum`
+	ourDecT=`./avgOursDec.sh ../data/$dataset".myG" $batNum`
+	# XH      
+	cp ../data/$dataset".truss" graph-before.truss
+	XHDecT=`./avgXHDec.sh $batNum`
+	# Order
+	OrderDecT=`./avgOrderDec.sh ../data/$dataset".order" $batNum`
 
 	# save
-	resultLine=$resultLine,$ourIncT,$ourDecT,$ourIndexT
-	done
+	resultLine="$dataset,$XHIncT,$OrderIncT,$ourIncT,$ourDecT,$OrderDecT,$ourDecT"
 	echo $resultLine >> $output
 done
-rm *.txt oldGraph.myG graph.myG 
+rm oldGraph.txt oldGraph.myG oldGraph.order graph-before.truss

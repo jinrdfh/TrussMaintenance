@@ -575,7 +575,10 @@ int insertPart::rmEInVisQEasy(myG &mpG, int iCurK, int iCurL, myPriQueue &myVstQ
                      myVstQ.getDy());*/
         ++iCnt;
 
-        DEBUG_ASSERT(pstNode->bInit);
+        if (!pstNode->bInit)
+        {
+            mpG.init(pstNode->eid);
+        }
         itLfE = pstNode->vLfE.begin();
         itRtE = pstNode->vRtE.begin();
         for (; itLfE != pstNode->vLfE.end(); ++itLfE, ++itRtE)
@@ -759,10 +762,6 @@ int insertPart::insKByBFSEasy(myG &mpG, int iCurT, vector <int> &vSeed, vector <
                          pstNode->iTrussness, pstNode->iLayer,
                          pstNode->iSeSup);*/
             DEBUG_ASSERT(iCurT == pstNode->iTrussness);
-            if (!pstNode->bInit)
-            {
-                mpG.init(pstNode->eid);
-            }
         }
 #if 0
         int iDebugCnt = 0;
@@ -859,7 +858,10 @@ int insertPart::insKByBFSEasy(myG &mpG, int iCurT, vector <int> &vSeed, vector <
         myCanQ.pop();
         pstNode->bCanQFlag = false;
         pstNode->bUsedCanFlag = false;
-        DEBUG_ASSERT(pstNode->bInit);
+        if (!pstNode->bInit)
+        {
+            mpG.init(pstNode->eid);
+        }
         itLfE = pstNode->vLfE.begin();
         itRtE = pstNode->vRtE.begin();
         for (; itLfE != pstNode->vLfE.end(); ++itLfE, ++itRtE)
@@ -921,10 +923,6 @@ int insertPart::insKByBFSEasy(myG &mpG, int iCurT, vector <int> &vSeed, vector <
                                 pstLfNode->bVstFlag = true;
                                 ++g_lBFSCnt;
                                 vVisit.push_back(pstLfNode->eid);
-                                if (!pstLfNode->bInit)
-                                {
-                                    mpG.init(pstLfNode->eid);
-                                }
                             }
                         }
                     }
@@ -947,10 +945,6 @@ int insertPart::insKByBFSEasy(myG &mpG, int iCurT, vector <int> &vSeed, vector <
                                 pstRtNode->bVstFlag = true;
                                 ++g_lBFSCnt;
                                 vVisit.push_back(pstRtNode->eid);
-                                if (!pstRtNode->bInit)
-                                {
-                                    mpG.init(pstRtNode->eid);
-                                }
                             }
                         }
                     }
@@ -983,10 +977,6 @@ int insertPart::insKByBFSEasy(myG &mpG, int iCurT, vector <int> &vSeed, vector <
                             pstLfNode->bVstFlag = true;
                             ++g_lBFSCnt;
                             vVisit.push_back(pstLfNode->eid);
-                            if (!pstLfNode->bInit)
-                            {
-                                mpG.init(pstLfNode->eid);
-                            }
                         }
                     }
                 }
@@ -1005,10 +995,6 @@ int insertPart::insKByBFSEasy(myG &mpG, int iCurT, vector <int> &vSeed, vector <
                                 pstLfNode->bVstFlag = true;
                                 ++g_lBFSCnt;
                                 vVisit.push_back(pstLfNode->eid);
-                                if (!pstLfNode->bInit)
-                                {
-                                    mpG.init(pstLfNode->eid);
-                                }
                             }
                         }
                     }
@@ -1039,10 +1025,6 @@ int insertPart::insKByBFSEasy(myG &mpG, int iCurT, vector <int> &vSeed, vector <
                             pstRtNode->bVstFlag = true;
                             ++g_lBFSCnt;
                             vVisit.push_back(pstRtNode->eid);
-                            if (!pstRtNode->bInit)
-                            {
-                                mpG.init(pstRtNode->eid);
-                            }
                         }
 
                     }
@@ -1062,10 +1044,6 @@ int insertPart::insKByBFSEasy(myG &mpG, int iCurT, vector <int> &vSeed, vector <
                                 pstRtNode->bVstFlag = true;
                                 ++g_lBFSCnt;
                                 vVisit.push_back(pstRtNode->eid);
-                                if (!pstRtNode->bInit)
-                                {
-                                    mpG.init(pstRtNode->eid);
-                                }
                             }
                         }
                     }
@@ -1123,7 +1101,10 @@ int insertPart::insKByBFSEasy(myG &mpG, int iCurT, vector <int> &vSeed, vector <
             //vector <int> vKLfE;
             //vector <int> vKRtE;
 
-            DEBUG_ASSERT(pstNode->bInit);
+            if (!pstNode->bInit)
+            {
+                mpG.init(pstNode->eid);
+            }
             itLfE = pstNode->vLfE.begin();
             itRtE = pstNode->vRtE.begin();
             for (; itLfE != pstNode->vLfE.end(); ++itLfE, ++itRtE)
@@ -1400,12 +1381,25 @@ int insertPart::simpleAdd(myG &mpG, int x, int y)
     vector<int>::iterator itLfE;
     vector<int>::iterator itRtE;
 
+	struct timeval tv;
+	long lStartTime = 0;
+	long lCurTime = 0;
+
     /* add and init */
     DEBUG_ASSERT(x < y);
     //DEBUG_PRINTF("ADD begin\n");
+    gettimeofday(&tv, NULL);
+    lStartTime = tv.tv_sec * 1000000 + tv.tv_usec;
     iEid = mpG.add(x, y);
+    gettimeofday(&tv, NULL);
+    lCurTime = tv.tv_sec * 1000000 + tv.tv_usec;
+    g_lFillInfoTime += lCurTime - lStartTime;
     //DEBUG_PRINTF("ADD end\n");
-    DEBUG_ASSERT(0 != iEid);
+    if (0 == iEid)
+    {
+        /* joined, ignore */
+        return 0;
+    }
     pstNode = mpG.findNode(iEid);
     DEBUG_ASSERT(NULL != pstNode);
     //pstNode->bNewFlag = true;
@@ -1442,10 +1436,10 @@ int insertPart::simpleAdd(myG &mpG, int x, int y)
                 pstLfNode->vRtE.push_back(iEid);
             }
         }
-        else
+        /*else
         {
             mpG.init(pstLfNode->eid);
-        }
+        }*/
 
         if (pstRtNode->bInit)
         {
@@ -1462,10 +1456,10 @@ int insertPart::simpleAdd(myG &mpG, int x, int y)
                 pstRtNode->vRtE.push_back(iEid);
             }
         }
-        else
+        /*else
         {
             mpG.init(pstRtNode->eid);
-        }
+        }*/
 
 
         /*DEBUG_PRINTF("DEBUG add vector %d %d %d\n",
@@ -2090,10 +2084,6 @@ int insertPart::localDec(myG &mpG, int iNode, vector <TPST_ADJ> &vNeibE, vector 
             {
                 /* ignore half */
                 continue;
-            }
-            if (!pstTrd->bInit)
-            {
-                mpG.init(pstTrd->eid);
             }
             vEdges.push_back(pstTrd->eid);
             vPair.push_back(pair<int, int>(pstNode->iTpId, pstDes->iTpId));
@@ -2970,6 +2960,7 @@ int insertPart::edgeDec(myG &mpG, int iEid, vector <int> &vSeed)
     /*DEBUG_PRINTF("DEBUG edge: (%d, %d) global max k: %d\n",
                  pstNode->paXY.first, pstNode->paXY.second, mpG.m_iMaxK);*/
 
+    DEBUG_ASSERT(pstNode->bInit);
     /* fill neighbor truss vector */
     itLfE = pstNode->vLfE.begin();
     itRtE = pstNode->vRtE.begin();
@@ -3313,6 +3304,8 @@ int insertPart::batchIns(myG &mpG, map<int, TPST_BALL_INFO > &mpBallInfo, vector
         //DEBUG_PRINTF("DEBUG node: %d type: %d\n", iNode, pstBall->iType);
         if (INSERT_BALL_I == pstBall->iType)
         {
+            gettimeofday(&tv, NULL);
+            lSubStartTime = tv.tv_sec * 1000 + tv.tv_usec / 1000;
             if (pstBall->iPid < pstBall->iNeibP)
             {
                 pstBall->iEid = simpleAdd(mpG, pstBall->iPid, pstBall->iNeibP);
@@ -3321,34 +3314,50 @@ int insertPart::batchIns(myG &mpG, map<int, TPST_BALL_INFO > &mpBallInfo, vector
             {
                 pstBall->iEid = simpleAdd(mpG, pstBall->iNeibP, pstBall->iPid);
             }
-            /*gettimeofday(&tv, NULL);
-            lSubStartTime = tv.tv_sec * 1000 + tv.tv_usec / 1000;*/
-            edgeDec(mpG, pstBall->iEid, vSeed);
-            ++g_lBallSize;
-            /*gettimeofday(&tv, NULL);
+            gettimeofday(&tv, NULL);
             lCurTime = tv.tv_sec * 1000 + tv.tv_usec / 1000;
-            g_lEdgeDecTime += lCurTime - lSubStartTime;*/
+            g_lSimpleAddTime += lCurTime - lSubStartTime;
+
+            gettimeofday(&tv, NULL);
+            lSubStartTime = tv.tv_sec * 1000 + tv.tv_usec / 1000;
+            if (0 != pstBall->iEid)
+            {
+                edgeDec(mpG, pstBall->iEid, vSeed);
+                ++g_lBallSize;
+            }
+            gettimeofday(&tv, NULL);
+            lCurTime = tv.tv_sec * 1000 + tv.tv_usec / 1000;
+            g_lEdgeDecTime += lCurTime - lSubStartTime;
         }
         else
         {
             //DEBUG_PRINTF("DEBUG add begin\n");
+            int iNewCnt = 0;
+            int iEid = 0;
             for (int iNeibP : pstBall->vNewP)
             {
                 /* new edge */
                 if (pstBall->iPid < iNeibP)
                 {
-                    simpleAdd(mpG, pstBall->iPid, iNeibP);
+                    iEid = simpleAdd(mpG, pstBall->iPid, iNeibP);
                 }
                 else
                 {
-                    simpleAdd(mpG, iNeibP, pstBall->iPid);
+                    iEid = simpleAdd(mpG, iNeibP, pstBall->iPid);
+                }
+                if (0 != iEid)
+                {
+                    ++iNewCnt;
                 }
             }
             //DEBUG_PRINTF("DEBUG add end\n");
             /*gettimeofday(&tv, NULL);
             lSubStartTime = tv.tv_sec * 1000 + tv.tv_usec / 1000;*/
-            localDec(mpG, iNode, mpG.m_vAdj[iNode], vSeed);
-            g_lBallSize += mpG.m_vAdj[iNode].size();
+            if (0 < iNewCnt)
+            {
+                localDec(mpG, iNode, mpG.m_vAdj[iNode], vSeed);
+                g_lBallSize += mpG.m_vAdj[iNode].size();
+            }
             /*gettimeofday(&tv, NULL);
             lCurTime = tv.tv_sec * 1000 + tv.tv_usec / 1000;
             g_lLocalDecTime += lCurTime - lSubStartTime;*/
@@ -3369,7 +3378,7 @@ int insertPart::batchIns(myG &mpG, map<int, TPST_BALL_INFO > &mpBallInfo, vector
     g_lOutBallTime += lCurTime - lStartTime;
     return 0;
 }
-#if 0
+
 /*****************
 input:
         myG &mpG
@@ -3378,7 +3387,7 @@ input:
 description:
         find all alley type
 ******************/
-int insertPart::disjoint(map<int, TPST_BALL_INFO > &mpBallInfo, vector< vector<int> > &vInsScheme)
+int insertPart::disjoint(myG &mpG, map<int, TPST_BALL_INFO > &mpBallInfo, vector< vector<int> > &vInsScheme)
 {
     /* <d, pid>, none */
     map<pair<int, int>, int> mpOrder;
@@ -3392,11 +3401,11 @@ int insertPart::disjoint(map<int, TPST_BALL_INFO > &mpBallInfo, vector< vector<i
     for (itmpNode = mpBallInfo.begin(); itmpNode != mpBallInfo.end(); ++itmpNode)
     {
         itmpNode->second.bUsed = false;
-        mpOrder[pair<int, int>(itmpNode->second.mpNeibP.size(), itmpNode->second.iPid)] = 0;
+        mpOrder[pair<int, int>(itmpNode->second.vNewP.size(), itmpNode->second.iPid)] = 0;
     }
     for (ritMp = mpOrder.rbegin(); ritMp != mpOrder.rend(); ++ritMp)
     {
-        DEBUG_PRINTF("DEBUG DISJOINT node: %d degree: %d\n", ritMp->first.second, ritMp->first.first);
+        //DEBUG_PRINTF("DEBUG DISJOINT node: %d degree: %d\n", ritMp->first.second, ritMp->first.first);
         vOrder.push_back(ritMp->first.second);
     }
 
@@ -3421,7 +3430,14 @@ int insertPart::disjoint(map<int, TPST_BALL_INFO > &mpBallInfo, vector< vector<i
         pvScheme = &(*itScheme);
 
         pvScheme->push_back(pstBall->iPid);
-        //mpNodePool = pstBall->mpNeibP;
+        for (auto atPid : pstBall->vNewP)
+        {
+            mpNodePool[atPid] = 0;
+        }
+        for (auto atNeib : mpG.m_vAdj[pstBall->iPid])
+        {
+            mpNodePool[atNeib.iPid] = 0;
+        }
         mpNodePool[pstBall->iPid] = 0;
         pstBall->bUsed = true;
 
@@ -3436,24 +3452,29 @@ int insertPart::disjoint(map<int, TPST_BALL_INFO > &mpBallInfo, vector< vector<i
                 /* used */
                 continue;
             }
-            bool bIntFlag = false;
-            for (int iChoPid : *pvScheme)
+            bool bIstFlag = false;
+            if (mpNodePool.find(pstNextBall->iPid) != mpNodePool.end())
             {
-                if (pstNextBall->mpNeibP.find(iChoPid) != pstNextBall->mpNeibP.end())
+                bIstFlag = true;
+                continue;
+            }
+            for (auto atPid : pstNextBall->vNewP)
+            {
+                if (mpNodePool.find(atPid) != mpNodePool.end())
                 {
-                    /* Intersect */
-                    bIntFlag = true;
-                    break;
-                }
-                pstBall = &(mpBallInfo[iChoPid]);
-                if (pstBall->mpNeibP.find(pstNextBall->iPid) != pstBall->mpNeibP.end())
-                {
-                    /* Intersect */
-                    bIntFlag = true;
+                    bIstFlag = true;
                     break;
                 }
             }
-            if (bIntFlag)
+            for (auto atNeib : mpG.m_vAdj[pstNextBall->iPid])
+            {
+                if (mpNodePool.find(atNeib.iPid) != mpNodePool.end())
+                {
+                    bIstFlag = true;
+                    break;
+                }
+            }
+            if (bIstFlag)
             {
                 /* Intersect */
                 continue;
@@ -3464,11 +3485,21 @@ int insertPart::disjoint(map<int, TPST_BALL_INFO > &mpBallInfo, vector< vector<i
             pstNextBall->bUsed = true;
             //mpNodePool.insert(pstNextBall->mpNeibP.begin(), pstNextBall->mpNeibP.end());
             mpNodePool[pstNextBall->iPid] = 0;
+            for (auto atPid : pstNextBall->vNewP)
+            {
+                mpNodePool[atPid] = 0;
+            }
+            for (auto atNeib : mpG.m_vAdj[pstNextBall->iPid])
+            {
+                mpNodePool[atNeib.iPid] = 0;
+            }
         }
+
+        DEBUG_PRINTF("DISJOINT batch,%d,size,%d\n", vInsScheme.size(), pvScheme->size());
     }
     return 0;
 }
-#endif
+
 /*****************
 input:
         myG &mpG
@@ -3482,21 +3513,24 @@ int insertPart::fillInfo(myG &mpG, map<int, vector <int> > &mpPrivate, list<pair
     //vector <pair<int, int> > vNeibP;
     //vector <int> vThirdE;
     TPST_BALL_INFO *pstBall;
+    list<pair<int, int> >::iterator itlsQ;
 
     map<int, vector <int> >::iterator itPri;
-    for (auto atQ : lstQuery)
+    for (itlsQ = lstQuery.begin(); itlsQ != lstQuery.end(); )
     {
-        int iNode = atQ.first;
+        int iNode = itlsQ->first;
 
         itPri = mpPrivate.find(iNode);
         if (itPri == mpPrivate.end())
         {
             /* no such ball */
+            lstQuery.erase(itlsQ++);
             continue;
         }
         if (mpBallInfo.find(iNode) != mpBallInfo.end())
         {
             /* visited */
+            lstQuery.erase(itlsQ++);
             continue;
         }
 
@@ -3507,11 +3541,6 @@ int insertPart::fillInfo(myG &mpG, map<int, vector <int> > &mpPrivate, list<pair
             int iNeib = itPri->second[0];
             /*DEBUG_PRINTF("FILL_INFO I-Ball (%d, %d) maxP: %d\n",
                          iNode, iNeib, mpG.m_iMaxPId);*/
-            if (NULL != mpG.findNode(iNode, iNeib))
-            {
-                /* joined, ignore */
-                continue;
-            }
 
             /* I-ball */
             pstBall = &(mpBallInfo[iNode]);
@@ -3529,6 +3558,7 @@ int insertPart::fillInfo(myG &mpG, map<int, vector <int> > &mpPrivate, list<pair
             pstBall->iType = INSERT_BALL_II;
             pstBall->vNewP.swap(itPri->second);
         }
+        ++itlsQ;
     }
     return 0;
 }
@@ -3561,7 +3591,9 @@ int insertPart::insertAll(myG &mpG, map<int, vector <int> > &mpPrivate, list<pai
 	//DEBUG_PRINTF("INSERT_ALL fill info end\n");
 
     /* find disjoint insertion */
-    //disjoint(mpBallInfo, vInsScheme);
+    /*disjoint(mpG, mpBallInfo, vInsScheme);
+    DEBUG_PRINTF("DISJOINT batch number,%d,star number,%d\n", vInsScheme.size(), mpBallInfo.size());*/
+    //DEBUG_ASSERT(0);
 
     gettimeofday(&tv, NULL);
     lStartTime = tv.tv_sec * 1000 + tv.tv_usec / 1000;

@@ -1,19 +1,23 @@
 indexFile=$1
-batchNum=$2
-queryPath="query/"
+queryPath=$2
+batchNum=$3
 logFile="log.txt"
 
-totalStep1T=0
-totalStep2T=0
+totalSize=0
+totalL=0
+totalK=0
 for i in $( seq 1 $batchNum )
 do
 ../ballsIns.out $indexFile $queryPath"private_$i.txt" $queryPath"queryN_$i.txt" > $logFile
-step1T=`cat $logFile | grep "g_lBallDecTime" | awk '{print $2}'`
-step2T=`cat $logFile | grep "g_lOutBallTime" | awk '{print $2}'`
-totalStep1T=`echo "scale=3; $totalStep1T+$step1T" | bc`
-totalStep2T=`echo "scale=3; $totalStep2T+$step2T" | bc`
+ballSize=`cat $logFile | grep "ball size" | awk '{print $4}'`
+L_Chg=`cat $logFile | grep "BFS" | awk '{print $6}'`
+K_Chg=`cat $logFile | grep "upgraded" | awk '{print $8}'`
+totalSize=`echo "scale=3; $totalSize+$ballSize" | bc`
+totalL=`echo "scale=3; $totalL+$L_Chg" | bc`
+totalK=`echo "scale=3; $totalK+$K_Chg" | bc`
 done
-avgStep1T=`echo "scale=3; $totalStep1T/$batchNum" | bc`
-avgStep2T=`echo "scale=3; $totalStep2T/$batchNum" | bc`
-echo $avgStep1T,$avgStep2T
+avgSize=`echo "scale=3; $totalSize/$batchNum" | bc`
+avgL=`echo "scale=3; $totalL/$batchNum" | bc`
+avgK=`echo "scale=3; $totalK/$batchNum" | bc`
+echo $avgSize,$avgL,$avgK
 rm $logFile

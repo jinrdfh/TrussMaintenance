@@ -21,7 +21,7 @@ typedef struct save_entry
 int file_readPrivate(char *szFileName, map<int, vector <int> > &mpPrivate, int *piMaxPid);
 int file_readQuery(char *szFileName, vector <pair<int, int> > &lstQuery);
 
-int file_saveDeTruss(myG &oMpG, LIST_DECOMP_G &lstDeG, char *szTrussPath);
+int file_saveDeTruss(myG &oMpG, map<int, vector<int> > &mpDeG, char *szTrussPath);
 int file_saveTrussness(myG &oMpG, char *szTrussPath);
 //int file_saveResult(myG &oMpG, list<int> &lstDG, int iNode, int iDk, char *szResultPath);
 

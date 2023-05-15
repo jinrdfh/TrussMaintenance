@@ -23,8 +23,8 @@ int file_saveTrussness(myG &oMpG, char *pcFile);
 //int file_saveResult(myG &oMpG, list<int> &lstDG, int iNode, int iDk, char *szResultPath);
 
 //int file_saveG(myG &oMpG, char *szGPath, bool bFinal);
-int file_saveBitG(myG &oMpG, char *pcFile);
+int file_saveBitG(myG &oMpG, char *pcIndexFile);
 //int file_saveAlley(alley &oAlley, char *szAlleyPath);
 //int file_readG(myG &oMpG, char *szGPath);
-int file_readBitG(myG &oMpG, char *pcFile);
+int file_readBitG(myG &oMpG, char *pcIndexFile);
 //int file_readAlley(alley &oAlley, char *szAlleyPath);

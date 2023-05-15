@@ -1,6 +1,6 @@
 dataFile=$1
-ratio=0.5
 graphFile=$2
-batNum=$3
+sampleNum=$3
+batNum=$4
 
-python ../randomPMulNode.py $dataFile $ratio $graphFile query/private.txt ./query/ query/query.txt $batNum
+python ./randomNum.py $dataFile $graphFile query/private.txt query/query.txt ./query/ $sampleNum $batNum

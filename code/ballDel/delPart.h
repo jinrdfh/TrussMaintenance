@@ -3,7 +3,7 @@
 alley function
 ****************/
 
-typedef struct tpstmpPInfo
+/*typedef struct tpstmpPInfo
 {
     int iPid;
     int iEid;
@@ -19,7 +19,14 @@ typedef struct tpstmpPInfo
     bool bRmFlag;
     bool bInPriQFlag;
     bool bLock;
-}TPSTMP_P_INFO;
+}TPSTMP_P_INFO;*/
+
+typedef struct tpstOrder
+{
+    int k;
+    int L;
+    int eid;
+}TPST_ORDER;
 
 class delPart
 {
@@ -33,7 +40,7 @@ private:
     //static int degradeForAllK(myG &mpG, vector <int> &vCdtE);
     static int simpleRm(myG &mpG, int iEid);
 
-    static int localDec(myG &mpG, int iNode, map<pair<int, int>, int> &mpLocalG, unordered_map<int, TPSTMP_P_INFO> &mpLocalP, map<pair<int, int>, list<pair<int, int> > > &mpKPLs);
+    //static int localDec(myG &mpG, int iNode, map<pair<int, int>, int> &mpLocalG, unordered_map<int, TPSTMP_P_INFO> &mpLocalP, map<pair<int, int>, list<pair<int, int> > > &mpKPLs);
     //static int nodeDec(myG &mpG, int iNode, vector <int> &vCdtE);
 
     static int updateK(myG &mpG, vector <int> &vCdtE, vector <int> &vChgKE);
@@ -42,9 +49,11 @@ private:
     static int recalL(myG &mpG, vector <int> &vChgKE, vector <int> &vCdtChgLE);
     static int updateL(myG &mpG, vector <int> &vCdtE, vector <int> &vChgLE);
 
-    static int singleEDec(myG &mpG, int iNode, int iRmNode);
-    static int ballDec(myG &mpG, int iNode, vector <int> &vRmP);
+    static int singleEDec(myG &mpG, int iNode, int iRmNode, int *piRmEid, vector <int> &vKSeed, vector <int> &vLSeed);
+    static int localDec(myG &mpG, int iNode, vector <AdjEntry> &vNeibE, vector <int> &vRmNeb, vector <int> &vRmE, vector <int> &vKSeed, vector <int> &vLSeed);
+    //static int ballDec(myG &mpG, int iNode, vector <int> &vRmP);
 public:
+    static bool cmpOrder(const TPST_ORDER& e1, const TPST_ORDER& e2);
     static int delOneNodePart(myG &mpG, map<int, vector <int> > &mpPrivate, int iNode);
 
 };

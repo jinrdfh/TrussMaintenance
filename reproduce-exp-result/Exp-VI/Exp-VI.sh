@@ -1,4 +1,4 @@
-datasets=(deezer_RO)
+datasets=(DBLP)
 batNum=100
 
 output="Exp-VI.csv"
@@ -6,11 +6,11 @@ true > $output
 
 for dataset in ${datasets[@]}
 do
-	header="Number,Ours,Order"
+	header="The number of inserted star motifs,Star,Order"
 	echo $header >> $output
 
 	#  generate queries
-	./randomPs.sh ../$dataset".txt" oldGraph.txt $batNum >/dev/null
+	./randomPs.sh ../data/$dataset".txt" oldGraph.txt $batNum 0.5 0.3 >/dev/null
 
 	# build index
 	# ours         

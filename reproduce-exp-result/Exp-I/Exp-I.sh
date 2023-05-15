@@ -1,11 +1,12 @@
 # dataset name, only two small datasets here
-datasets=(deezer_RO amazon)
+datasets=(Deezer Amazon DBLP Skitter Patents Pokec LJ Orkut Wise)
+# datasets=(Deezer)
 # repeat times
 batNum=100
 # output file name
 output="Exp-I.csv"
 # table head
-header=",Insertion (ms),,,,Removal (ms),,,Space (MB),,,,Index Creation (seconds),,,"
+header=",Star Insertion (ms),,,,Star Deletion (ms),,,Index Size (MB),,,,Indexing Time (seconds),,,"
 echo $header > $output
 header="Graph,XH,NodePP,Order,Ours,XH,Order,Ours,XH,NodePP,Order,Ours,XH,NodePP,Order,Ours"
 echo $header >> $output
@@ -13,39 +14,36 @@ echo $header >> $output
 for dataset in ${datasets[@]}
 do
 	# insertion
-	# generate queries
-	./randomPs.sh ../$dataset".txt" oldGraph.txt $batNum >/dev/null
 	# ours
-	./G2Ours.sh oldGraph.txt oldGraph.myG >/dev/null
-	ourIncT=`./avgOursInc.sh oldGraph.myG $batNum`
+	ourIncT=`./avgOursInc.sh ../data/$dataset"_sample.myG" ../data/$dataset"_query/" $batNum`
 	# XH
-	./G2XH.sh oldGraph.txt >/dev/null
-	XHIncT=`./avgXHInc.sh $batNum`
+	cp ../data/$dataset"_sample.truss" graph-before.truss
+	XHIncT=`./avgXHInc.sh ../data/$dataset"_query/" $batNum`
 	# NodePP
-	nodePPT=`./avgNodePP.sh $batNum`
+	nodePPT=`./avgNodePP.sh ../data/$dataset"_query/" $batNum`
+	rm graph-before.truss
 	# Order
-	./G2Order.sh oldGraph.txt oldGraph.order >/dev/null
-	OrderIncT=`./avgOrderInc.sh oldGraph.order $batNum`
+	OrderIncT=`./avgOrderInc.sh ../data/$dataset"_sample.order" ../data/$dataset"_query/" $batNum`
 
 	# deletion
 	# ours
-	ourIndexT=`./G2Ours.sh ../$dataset".txt" graph.myG | grep Index | awk '{print $3}' | sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g"`
-	ourIndexT=`echo "scale=3; $ourIndexT/1000" | bc`
-	ourIndexSize=`du -m graph.myG | awk '{print $1}'`
-	ourDecT=`./avgOursDec.sh graph.myG $batNum`
+	ourIndexT=`cat ../data/$dataset".log" | grep Star | awk '{print $4}'`
+	ourIndexSize=`du -m ../data/$dataset".myG" | awk '{print $1}'`
+	ourDecT=`./avgOursDec.sh ../data/$dataset".myG" ../data/$dataset"_query/" $batNum`
 	# XH
-	TrussT=`./G2XH.sh ../$dataset".txt" | grep Index | awk '{print $3}' | sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g"`         
-	TrussT=`echo "scale=3; $TrussT/1000" | bc`
+	TrussT=`cat ../data/$dataset".log" | grep XH | awk '{print $4}'`
+	cp ../data/$dataset".truss" graph-before.truss
 	TrussSize=`du -m graph-before.truss | awk '{print $1}'`         
-	XHDecT=`./avgXHDec.sh $batNum`
+	XHDecT=`./avgXHDec.sh ../data/$dataset"_query/" $batNum`
 	# Order
-	OrderIndexT=`./G2Order.sh ../$dataset".txt" graph.order | grep Index | awk '{print $3}' | sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g"`
-	OrderIndexT=`echo "scale=3; $OrderIndexT/1000" | bc`
-	OrderIndexSize=`du -m graph.order | awk '{print $1}'`
-	OrderDecT=`./avgOrderDec.sh graph.order $batNum`
+	OrderIndexT=`cat ../data/$dataset".log" | grep Order | awk '{print $4}'`
+	OrderIndexSize=`du -m ../data/$dataset".order" | awk '{print $1}'`
+	OrderDecT=`./avgOrderDec.sh ../data/$dataset".order" ../data/$dataset"_query/" $batNum`
 
 	# save
 	resultLine="$dataset,$XHIncT,$nodePPT,$OrderIncT,$ourIncT,$ourDecT,$OrderDecT,$ourDecT,$TrussSize,$TrussSize,$OrderIndexSize,$ourIndexSize,$TrussT,$TrussT,$OrderIndexT,$ourIndexT"
 	echo $resultLine >> $output
+
+	# clear
+	rm graph-before.truss
 done
-rm oldGraph.txt oldGraph.myG graph.myG oldGraph.order graph.order graph-before.truss

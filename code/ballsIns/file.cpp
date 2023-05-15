@@ -422,7 +422,7 @@ int file_saveBitG(myG &oMpG, char *pcFile)
 
     long long llCurPos = 0;
     long long llTotoalSize = oMpG.m_iMaxEId * sizeof(SaveEntry);
-    uint32_t uStep = llTotoalSize;
+    long long uStep = llTotoalSize;
     while (llCurPos < llTotoalSize)
     {
         if (uStep <= uMaxBuffer)
@@ -617,7 +617,7 @@ int file_readBitG(myG &oMpG, char *pcFile)
 
     long long llCurPos = 0;
     long long llTotoalSize = i_m * sizeof(SaveEntry);
-    uint32_t uStep = llTotoalSize;
+    long long uStep = llTotoalSize;
     while (llCurPos < llTotoalSize)
     {
         if (uStep <= uMaxBuffer)

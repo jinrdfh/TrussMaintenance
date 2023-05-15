@@ -1,5 +1,6 @@
-batchNum=$1
-queryPath="query/"
+
+queryPath=$1
+batchNum=$2
 logFile="log.txt"
 
 totalT=0
