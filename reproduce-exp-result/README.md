@@ -30,7 +30,7 @@ Run
 chmod +x master.sh
 ./master.sh
 
-in this folder, which takes about 900 hours.
+in this folder, which takes about 2000 hours.
 The script will download datasets, build indexes, and run experiments.
 Each experiment is independent, and if you want to obtain experimental results faster, you can run each experiment separately in the background.
 If you want to get the table in Exp-I, you can jump to the folder "Exp-I", then you can get the table saved in file "Exp-I.csv". More detailed README is in each subdirectory.

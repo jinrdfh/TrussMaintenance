@@ -3,21 +3,21 @@ datasets=(Deezer Amazon Orkut Wise)
 # datasets=(Deezer)
 # smallStarSize=(10 100 1000)
 # largeStarSize=(10 100 1000 10000 100000)
-batNum=100
+batNum=`cat ../repeat.txt`
 
 output="Exp-IV.csv"
 
 header="Size of star motif,10,,,,100,,,,1000,,,,10000,,,,100000,,,"
 echo $header > $output
-header="Graph,XH,NodePP,Order,Ours,XH,NodePP,Order,Ours,XH,NodePP,Order,Ours"
+header="Graph,XH,NodePP,Order,Star,XH,NodePP,Order,Star,XH,NodePP,Order,Star"
 echo $header >> $output
 
 for dataset in ${datasets[@]}
 do
-
 	resultLine="$dataset"
 
 	graphSize=`wc -l ../data/$dataset".txt" | awk '{print $1}'`
+
 	starSize=(10 100 1000)
 	if [ $graphSize -gt 10000000 ]
 	then
@@ -30,19 +30,19 @@ do
 	# generate queries
 	./randomQ.sh ../data/$dataset".txt" $curSize $batNum >/dev/null
 	# ours
-	ourIncT=`./avgOursInc.sh ../data/$dataset".myG" $batNum`
+	ourIncT=`./avgMul.sh $batNum singleOursInc.sh ../data/$dataset".myG"`
 	# XH
-	cp ../data/$dataset".truss" graph-before.truss
-	XHIncT=`./avgXHInc.sh $batNum`
+	XHIncT=`./avgMul.sh $batNum singleXHInc.sh ../data/$dataset".truss"`
 	# NodePP
-	nodePPT=`./avgNodePP.sh $batNum`
-	rm graph-before.truss
+	nodePPT=`./avgMul.sh $batNum singleNodePP.sh ../data/$dataset".truss"`
 	# Order
-	OrderIncT=`./avgOrderInc.sh ../data/$dataset".order" $batNum`
+	OrderIncT=`./avgMul.sh $batNum singleOrderInc.sh ../data/$dataset".order"`
 	resultLine=$resultLine",$XHIncT,$nodePPT,$OrderIncT,$ourIncT"
 	done
 
 	# save
 	echo $resultLine >> $output
 done
+
+python drawFig.py
 

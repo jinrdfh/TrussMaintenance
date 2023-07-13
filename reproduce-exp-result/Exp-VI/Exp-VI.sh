@@ -34,3 +34,5 @@ do
 	done
 done
 rm oldGraph.txt graph.myG graph.order
+
+python drawFig.py

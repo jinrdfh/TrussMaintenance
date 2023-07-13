@@ -2,7 +2,7 @@
 datasets=(Deezer Amazon DBLP Skitter Patents Pokec LJ Orkut Wise)
 # datasets=(Deezer)
 # repeat times
-batNum=100
+batNum=`cat ../repeat.txt`
 
 for dataset in ${datasets[@]}
 do

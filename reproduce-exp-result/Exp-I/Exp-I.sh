@@ -2,7 +2,7 @@
 datasets=(Deezer Amazon DBLP Skitter Patents Pokec LJ Orkut Wise)
 # datasets=(Deezer)
 # repeat times
-batNum=100
+batNum=`cat ../repeat.txt`
 # output file name
 output="Exp-I.csv"
 # table head
@@ -15,35 +15,30 @@ for dataset in ${datasets[@]}
 do
 	# insertion
 	# ours
-	ourIncT=`./avgOursInc.sh ../data/$dataset"_sample.myG" ../data/$dataset"_query/" $batNum`
+	ourIncT=`./avgMul.sh $batNum singleOursInc.sh ../data/$dataset"_query/" ../data/$dataset"_sample.myG"`
 	# XH
-	cp ../data/$dataset"_sample.truss" graph-before.truss
-	XHIncT=`./avgXHInc.sh ../data/$dataset"_query/" $batNum`
+	XHIncT=`./avgMul.sh $batNum singleXHInc.sh ../data/$dataset"_query/" ../data/$dataset"_sample.truss"`
 	# NodePP
-	nodePPT=`./avgNodePP.sh ../data/$dataset"_query/" $batNum`
-	rm graph-before.truss
+	nodePPT=`./avgMul.sh $batNum singleNodePP.sh ../data/$dataset"_query/" ../data/$dataset"_sample.truss"`
 	# Order
-	OrderIncT=`./avgOrderInc.sh ../data/$dataset"_sample.order" ../data/$dataset"_query/" $batNum`
+	OrderIncT=`./avgMul.sh $batNum singleOrderInc.sh ../data/$dataset"_query/" ../data/$dataset"_sample.order"`
 
 	# deletion
 	# ours
 	ourIndexT=`cat ../data/$dataset".log" | grep Star | awk '{print $4}'`
 	ourIndexSize=`du -m ../data/$dataset".myG" | awk '{print $1}'`
-	ourDecT=`./avgOursDec.sh ../data/$dataset".myG" ../data/$dataset"_query/" $batNum`
+	ourDecT=`./avgMul.sh $batNum singleOursDec.sh ../data/$dataset"_query/" ../data/$dataset".myG"`
 	# XH
 	TrussT=`cat ../data/$dataset".log" | grep XH | awk '{print $4}'`
-	cp ../data/$dataset".truss" graph-before.truss
-	TrussSize=`du -m graph-before.truss | awk '{print $1}'`         
-	XHDecT=`./avgXHDec.sh ../data/$dataset"_query/" $batNum`
+	TrussSize=`du -m ../data/$dataset".truss" | awk '{print $1}'`    
+	XHDecT=`./avgMul.sh $batNum singleXHDec.sh ../data/$dataset"_query/" ../data/$dataset".truss"`
 	# Order
 	OrderIndexT=`cat ../data/$dataset".log" | grep Order | awk '{print $4}'`
 	OrderIndexSize=`du -m ../data/$dataset".order" | awk '{print $1}'`
-	OrderDecT=`./avgOrderDec.sh ../data/$dataset".order" ../data/$dataset"_query/" $batNum`
+	OrderDecT=`./avgMul.sh $batNum singleOrderDec.sh ../data/$dataset"_query/" ../data/$dataset".order"`
 
 	# save
-	resultLine="$dataset,$XHIncT,$nodePPT,$OrderIncT,$ourIncT,$ourDecT,$OrderDecT,$ourDecT,$TrussSize,$TrussSize,$OrderIndexSize,$ourIndexSize,$TrussT,$TrussT,$OrderIndexT,$ourIndexT"
+	resultLine="$dataset,$XHIncT,$nodePPT,$OrderIncT,$ourIncT,$XHDecT,$OrderDecT,$ourDecT,$TrussSize,$TrussSize,$OrderIndexSize,$ourIndexSize,$TrussT,$TrussT,$OrderIndexT,$ourIndexT"
 	echo $resultLine >> $output
 
-	# clear
-	rm graph-before.truss
 done

@@ -1,7 +1,7 @@
 
 datasets=(Deezer Amazon DBLP Skitter Patents Pokec LJ Orkut Wise)
 # datasets=(Deezer)
-batNum=100
+batNum=`cat ../repeat.txt`
 
 output="Exp-III.csv"
 
@@ -11,7 +11,8 @@ echo $header > $output
 for dataset in ${datasets[@]}
 do
 	dataSize=`wc -l ../data/$dataset".txt" | awk '{print $1}'`
-	ourInc=`./avgOursInc.sh ../data/$dataset"_sample.myG" ../data/$dataset"_query/" $batNum`
+
+    ourInc=`./avgMul.sh $batNum singleOursInc.sh ../data/$dataset"_query/" ../data/$dataset"_sample.myG"`
 
 	# save
 	resultLine="$dataset,$dataSize,$ourInc"

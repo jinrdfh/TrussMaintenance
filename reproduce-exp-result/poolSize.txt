@@ -1,0 +1,7 @@
+singleOursInc.sh 20
+singleOursDec.sh 20
+singleXHInc.sh 20
+singleXHDec.sh 20
+singleNodePP.sh 10
+singleOrderInc.sh 20
+singleOrderDec.sh 20

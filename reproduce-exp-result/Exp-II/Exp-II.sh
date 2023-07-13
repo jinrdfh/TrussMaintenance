@@ -1,7 +1,7 @@
 
 datasets=(Deezer Amazon DBLP Skitter Patents Pokec LJ Orkut Wise)
 # datasets=(Deezer)
-batNum=100
+batNum=`cat ../repeat.txt`
 
 output="Exp-II.csv"
 
@@ -10,9 +10,11 @@ echo $header > $output
 
 for dataset in ${datasets[@]}
 do
-	ourIncT=`./avgOursInc.sh ../data/$dataset"_sample.myG" ../data/$dataset"_query/" $batNum`
+    ourIncT=`./avgMul.sh $batNum singleOursInc.sh ../data/$dataset"_query/" ../data/$dataset"_sample.myG"`
 
 	# save
 	resultLine="$dataset,$ourIncT"
 	echo $resultLine >> $output
 done
+
+python drawFig.py

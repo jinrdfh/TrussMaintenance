@@ -62,7 +62,7 @@ cd data
 ./buildAllIndex.sh
 cd ..
 
-# Exp-I 240 h
+# Exp-I 600 h
 cd Exp-I
 ./Exp-I.sh
 cd ..
@@ -77,12 +77,12 @@ cd Exp-III
 ./Exp-III.sh
 cd ..
 
-# Exp-IV 400 h
+# Exp-IV 700 h
 cd Exp-IV
 ./Exp-IV.sh
 cd ..
 
-# Exp-V 120 h
+# Exp-V 480 h
 cd Exp-V
 ./Exp-V.sh
 cd ..
