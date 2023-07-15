@@ -1,7 +1,7 @@
 datasets=(Patents)
 indexEnd=1800
 batNum=100
-logFile="log.txt"
+logFile="XH.log"
 
 output="Exp-VIII.csv"
 true > $output
@@ -32,7 +32,7 @@ do
 	# Order
 	OrderIncT=`./runOrderInc.sh graph.order $i`
 	# XH
-	./runXHInc.sh $i >> $logFile
+	./runXHInc.sh graph-before.truss $i >> $logFile
 	XHIncT=`tail -n 1 $logFile`
 
 	# i+1 index

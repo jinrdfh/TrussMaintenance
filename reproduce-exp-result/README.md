@@ -30,7 +30,10 @@ Run
 chmod +x master.sh
 ./master.sh
 
-in this folder, which takes about 2000 hours.
+in this folder, which takes about 55 hours.
+In this script, each experiment is only conducted 1 time.
+However, in experimental parts in the paper, each experiment will be conducted 100 time, which can be modified in the file "repeat.txt", and it takes 2000 hours by single processor.
+You can also repeat these experiments in parallel, whose number can be modified in the file "pooSize.txt".
 The script will download datasets, build indexes, and run experiments.
 Each experiment is independent, and if you want to obtain experimental results faster, you can run each experiment separately in the background.
 If you want to get the table in Exp-I, you can jump to the folder "Exp-I", then you can get the table saved in file "Exp-I.csv". More detailed README is in each subdirectory.
