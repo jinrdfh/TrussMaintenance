@@ -30,7 +30,7 @@ Run
 chmod +x master.sh
 ./master.sh
 
-in this folder, which takes about 55 hours.
+in this folder, which takes about 64 hours.
 In this script, each experiment is only conducted 1 time.
 However, in experimental parts in the paper, each experiment will be conducted 100 time, which can be modified in the file "repeat.txt", and it takes 2000 hours by single processor.
 You can also repeat these experiments in parallel, whose number can be modified in the file "pooSize.txt".

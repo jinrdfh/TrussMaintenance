@@ -11,7 +11,7 @@ This folder contains all codes and experimental scripts of paper "Efficient Star
 * **software**: Oracle Linux 8.7 (64-bit), gcc version 8.5.0 20210514 (Red Hat 8.5.0-16.0.2) (GCC), python 3
 * **hardware**: Xeon E5-2630 v4 @ 2.2GHz (2S/10C) / 256GB RAM / 128GB SWAP
 
-The total running time for master script "master.sh" is about 900 hours.
+The total running time for master script "master.sh" is about 64 hours.
 The running time of each step is in "master.sh".
 
 More detailed README is in each subdirectory.
