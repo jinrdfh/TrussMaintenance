@@ -25,7 +25,6 @@ do
 	
 	# Order
 	./G2Order.sh oldGraph.txt oldGraph.order >/dev/null
-	OrderIncT=`./avgOrderInc.sh oldGraph.order $batNum`
 	OrderIncT=`./avgMul.sh $batNum singleOrderInc.sh "./query/" oldGraph.order`
 
 	# deletion
