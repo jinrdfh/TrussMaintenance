@@ -12,6 +12,8 @@ We put each experiment in a separate folder, which contains a demonstration.
 * **Exp-VI**: Exp-VI folder
 * **Exp-VII**: Exp-VII folder
 * **Exp-VIII**: Exp-VIII folder
+* **data**: data folder, datasets downloaded will be put here.
+* **code**: code folder, all source codes can generate all executable files in this experiment.
 * **index.out**: The executable file to build the index of our algorithm
 * **ballsIns.out**: The executable file of our incremental algorithm
 * **ballDel.out**: The executable file of our decremental algorithm

@@ -1,3 +1,12 @@
+# compile
+chmod +x *sh
+chmod +x */*sh
+
+./getExe.sh
+
+chmod +x *out
+chmod +x */*out
+
 # download datasets
 cd data
 # Deezer
@@ -53,9 +62,6 @@ tar zxvf Wise.tar.gz
 mv wise_simple.txt Wise.txt
 rm Wise.tar.gz
 cd ..
-
-chmod +x *out *sh
-chmod +x */*out */*sh
 
 # build index 15 h
 cd data
