@@ -1,52 +1,6 @@
-Shell:
-make
-
-C++:
-#include <stdio.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <memory.h>
-#include <string.h>
-#include <assert.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <iostream>
-#include <list>
-#include <vector>
-#include <map>
-#include <unordered_map>
-#include <set>
-#include <unordered_set>
-#include <queue>
-#include <cassert>
-#include <utility>
-#include <algorithm>
-#include <climits>
-#include <cstdlib>
-#include <fstream>
-#include <sstream>
-#include <numeric>
-#include <chrono>
-#include <cstdint>
-#include <string>
-#include <cstring>
-#include <cmath>
-#include <functional>
-#include <ctime>
-#include <cstdio>
-
-g++:
--O3 --std=c++0x
--march=native -O3
--c -std=c++11 -Wfatal-errors
---std=c++0x -Wall -DNDEBUG -g
--lpthread
--march=native -w -O3
-
-Python 3.8.17:
+# Python 3.8.17:
 numpy
-matplotlib.pyplot
+matplotlib
 csv
 sys
 os
