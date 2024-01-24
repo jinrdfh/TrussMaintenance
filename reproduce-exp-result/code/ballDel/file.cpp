@@ -41,7 +41,7 @@ int file_readPrivate(char *szFileName, map<int, vector <int> > &mpPrivate, int *
         printf("error no file: %s\n", szFileName);
         DEBUG_ASSERT(0);
     }
-    while (fgets(szBuffer, ONE_LINE_BUFFER - 1, fp) > 0)
+    while (fgets(szBuffer, ONE_LINE_BUFFER - 1, fp) != NULL)
     {
         res = sscanf(szBuffer, "n %d", &iTempX);
         iTempX = iTempX + g_iOffset;
@@ -131,7 +131,7 @@ int file_readQuery(char *szFileName, vector <pair<int, int> > &vQuery)
         printf("error no file: %s\n", szFileName);
         DEBUG_ASSERT(0);
     }
-    while (fgets(szBuffer, ONE_LINE_BUFFER - 1, fp) > 0)
+    while (fgets(szBuffer, ONE_LINE_BUFFER - 1, fp) != NULL)
     {
         res = sscanf(szBuffer, "%d %d", &iTempX, &iTempY);
         iTempX = g_iOffset + iTempX;

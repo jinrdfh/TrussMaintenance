@@ -30,7 +30,7 @@ int file_fillG(myG &mpG, char *szFileName)
         printf("error no file: %s\n", szFileName);
         DEBUG_ASSERT(0);
     }
-    while (fgets(szBuffer, ONE_LINE_BUFFER - 1, fp) > 0)
+    while (fgets(szBuffer, ONE_LINE_BUFFER - 1, fp) != NULL)
     {
         sscanf(szBuffer, "%d%d", &iTempX, &iTempY);
         iTempX = g_iOffset + iTempX;

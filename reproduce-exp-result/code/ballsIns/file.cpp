@@ -12,57 +12,7 @@ input file output file function
 #include "file.h"
 
 int g_iOffset = 1;
-#if 0
-/*****************
-input:
-        char *szFileName
-        myG &mpG
-description:
-        read file and fill the list g_initG
-******************/
-int file_fillG(char *szFileName, myG &mpG)
-{
-    FILE *fp = NULL;
-    int iTempX = 0;
-    int iTempY = 0;
-    char szBuffer[ONE_LINE_BUFFER] = {0};
-    int iCnt = 0;
 
-    if (NULL == szFileName)
-    {
-        fp = fopen(DATA_PATH, "rt");
-    }
-    else
-    {
-        fp = fopen(szFileName, "rt");
-    }
-    if (NULL == fp)
-    {
-        printf("error no file: %s or %s\n", DATA_PATH, szFileName);
-        DEBUG_ASSERT(0);
-    }
-    while (fgets(szBuffer, ONE_LINE_BUFFER - 1, fp) > 0)
-    {
-        sscanf(szBuffer, "%d %d", &iTempX, &iTempY);
-        iTempX = g_iOffset + iTempX;
-        iTempY = g_iOffset + iTempY;
-        DEBUG_ASSERT(0 < iTempX);
-        DEBUG_ASSERT(0 < iTempY);
-
-        if (iTempX == iTempY)
-        {
-            continue;
-        }
-
-        //printf("DEBUG add new edge: (%d, %d)\n", iTempX, iTempY);
-        mpG.add(iTempX, iTempY);
-        ++iCnt;
-    }
-    printf("READ get edges: %d\n", iCnt);
-    fclose(fp);
-    return iCnt;
-}
-#endif
 /*****************
 input:
         char *szFileName
@@ -92,7 +42,7 @@ int file_readPrivate(char *pcFile, map<int, vector <int> > &mpPrivate, int *piMa
         printf("error no file: %s\n", pcFile);
         DEBUG_ASSERT(0);
     }
-    while (fgets(szBuffer, ONE_LINE_BUFFER - 1, fp) > 0)
+    while (fgets(szBuffer, ONE_LINE_BUFFER - 1, fp) != NULL)
     {
         res = sscanf(szBuffer, "n %d", &iTempX);
         iTempX = iTempX + g_iOffset;
@@ -199,7 +149,7 @@ int file_readQuery(char *pcFile, list<pair<int, int> > &lstQuery)
         printf("error no file: %s\n", pcFile);
         DEBUG_ASSERT(0);
     }
-    while (fgets(szBuffer, ONE_LINE_BUFFER - 1, fp) > 0)
+    while (fgets(szBuffer, ONE_LINE_BUFFER - 1, fp) != NULL)
     {
         res = sscanf(szBuffer, "%d %d", &iTempX, &iTempY);
         iTempX = g_iOffset + iTempX;
@@ -445,144 +395,6 @@ int file_saveBitG(myG &oMpG, char *pcFile)
     pstData = NULL;
     return 0;
 }
-#if 0
-/*****************
-input:
-        char *szFileName
-        myG &mpG
-description:
-        read file and fill the list g_initG
-******************/
-int file_readG(myG &oMpG, char *szGPath)
-{
-    FILE *fp = NULL;
-    int iTempX = 0;
-    int iTempY = 0;
-    int iCapacity = 0;
-    char cTpType;
-    char szBuffer[ONE_LINE_BUFFER] = {0};
-    int iCnt = 0;
-    char szFileName[FILE_NAME_BUFFER] = {0};
-    TPST_MAP_BY_EID stTpNode = {0};
-    TPST_MAP_BY_EID *pstTpNode = NULL;
-
-    sprintf(szFileName, "%s/%s.myG", szGPath, g_pcDataLabel);
-
-    fp = fopen(szFileName, "rt");
-
-    if (NULL == fp)
-    {
-        printf("error no file: %s or %s\n", DATA_PATH, szFileName);
-        DEBUG_ASSERT(0);
-    }
-    while (fgets(szBuffer, ONE_LINE_BUFFER - 1, fp) > 0)
-    {
-        sscanf(szBuffer, "%c,%ld", &cTpType, &iTempX);
-
-        switch(cTpType)
-        {
-            case 'c':
-                oMpG.m_pvG->clear();
-                if (iTempX > 0)
-                {
-                    oMpG.m_pvG->reserve(iTempX);
-                }
-                else
-                {
-                    /* invalid value */
-                    iCapacity = 0;
-                }
-                break;
-            case 'P':
-                iTempX = iTempX + g_iOffset;
-                oMpG.m_iMaxPId = iTempX;
-                oMpG.m_pvPNeCnt->reserve(iTempX + 1);
-                oMpG.m_pvPNeCnt->resize(iTempX + 1);
-                //printf("DEBUG get neighbor size: %d\n", iTempX);
-                break;
-            case 'E':
-                oMpG.m_iMaxEId = iTempX;
-                if (0 == iCapacity)
-                {
-                    /* set capacity by max EId */
-                    iCapacity = oMpG.m_iMaxEId + 1;
-                    oMpG.m_pvG->reserve(iCapacity);
-                }
-                break;
-            case 'D':
-                oMpG.m_iMaxD = iTempX;
-                break;
-            case 'K':
-                oMpG.m_iMaxK = iTempX;
-                break;
-            case 'n':
-                stTpNode.eid = iTempX;
-                //stTpNode.bNewFlag = false;
-                oMpG.m_pvG->push_back(stTpNode);
-                pstTpNode = &((*(oMpG.m_pvG))[iTempX]);
-                DEBUG_ASSERT(NULL != pstTpNode);
-                DEBUG_ASSERT(stTpNode.eid == pstTpNode->eid);
-                ++iCnt;
-                break;
-            case 's':
-                //pstTpNode->iSup = iTempX;
-                break;
-            case 'J':
-                //pstTpNode->iJuSup = iTempX;
-                break;
-            case 'S':
-                pstTpNode->iSeSup = iTempX;
-                break;
-            case 't':
-                pstTpNode->iTrussness = iTempX;
-                break;
-            case 'L':
-                pstTpNode->iLayer = iTempX;
-                break;
-            case 'a':
-                //pstTpNode->iAlleyType = iTempX;
-                break;
-            case 'x':
-                iTempX = iTempX + g_iOffset;
-                pstTpNode->paXY.first = iTempX;
-                if (0 < iTempX)
-                {
-                    (*(oMpG.m_pvPNeCnt))[iTempX]++;
-                }
-                /*if (iTempX >= oMpG.m_pvPNeCnt->size())
-                {
-                    printf("DEBUG get pid: %d, size: %d\n",
-                           iTempX, oMpG.m_pvPNeCnt->size());
-                    DEBUG_ASSERT(0);
-                }*/
-                DEBUG_ASSERT(iTempX <= oMpG.m_iMaxPId);
-                break;
-            case 'y':
-                iTempX = iTempX + g_iOffset;
-                pstTpNode->paXY.second = iTempX;
-                if (0 < iTempX)
-                {
-                    (*(oMpG.m_pvPNeCnt))[iTempX]++;
-                    oMpG.m_mpBasicG[pstTpNode->paXY] = pstTpNode->eid;
-                    oMpG.m_mpBasicG[pair<int, int>(pstTpNode->paXY.second, pstTpNode->paXY.first)] = pstTpNode->eid;
-                    oMpG.addNeibTri(pstTpNode->eid);
-                }
-                DEBUG_ASSERT(iTempX <= oMpG.m_iMaxPId);
-                break;
-            /*case 'l':
-                pstTpNode->vLfE.push_back(iTempX);
-                break;
-            case 'r':
-                pstTpNode->vRtE.push_back(iTempX);
-                break;*/
-            default:
-                printf("FILE ERROR %c\n", cTpType);
-        }
-    }
-    fclose(fp);
-    return iCnt;
-}
-#endif
 /*****************
 input:
         char *szFileName
