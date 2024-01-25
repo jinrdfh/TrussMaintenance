@@ -45,7 +45,7 @@ int fileIO_getIndex(char *szFileName, KTrussIndex &oKTIndex, Graph *poG)
         assert(0);
     }
 
-    while (fgets(szBuffer, ONE_LINE_BUFFER - 1, fp) > 0)
+    while (fgets(szBuffer, ONE_LINE_BUFFER - 1, fp) != NULL)
     {
         iRet = sscanf(szBuffer, "%d %d %d", &iTempX, &iTempY, &iTrussness);
         if (3 != iRet)
@@ -83,7 +83,7 @@ int fileIO_getIndex(char *szFileName, KTrussIndex &oKTIndex, Graph *poG)
         oKTIndex.setTruss(mpNode.first.first, mpNode.first.second, mpNode.second);
     }
 
-    printf("get map size: %d\n", mpTpSave.size());
+    // printf("get map size: %d\n", mpTpSave.size());
     return 0;
 }
 /*****************
@@ -154,7 +154,7 @@ int fileIO_getEdges(char *szFileName, list<pair<int, int> > &lsE)
         assert(0);
     }
 
-    while (fgets(szBuffer, ONE_LINE_BUFFER - 1, fp) > 0)
+    while (fgets(szBuffer, ONE_LINE_BUFFER - 1, fp) != NULL)
     {
         iRet = sscanf(szBuffer, "%d %d", &iTempX, &iTempY);
         if (2 != iRet)
@@ -170,6 +170,6 @@ int fileIO_getEdges(char *szFileName, list<pair<int, int> > &lsE)
         lsE.push_back(pair<int, int>(iTempX, iTempY));
     }
 
-    printf("get list size: %d\n", lsE.size());
+    // printf("get list size: %d\n", lsE.size());
     return 0;
 }
