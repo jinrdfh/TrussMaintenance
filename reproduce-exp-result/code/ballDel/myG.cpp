@@ -66,8 +66,8 @@ int myG::init()
         pstNode->vRtE.clear();
         findNeb(x, y, pstNode->vLfE, pstNode->vRtE);
 
-        pstNode->vKLfE.resize(pstNode->vLfE.size());
-        pstNode->vKRtE.resize(pstNode->vRtE.size());
+        //pstNode->vKLfE.resize(pstNode->vLfE.size());
+        //pstNode->vKRtE.resize(pstNode->vRtE.size());
 
         itLfE = pstNode->vLfE.begin();
         itRtE = pstNode->vRtE.begin();
@@ -162,7 +162,7 @@ TPST_MAP_BY_EID *myG::add(int iEid)
 
     pstNode->bDgdFlag = false;
     //pstNode->bInit = false;
-    pstNode->bLInit = false;
+    //pstNode->bLInit = false;
     return pstNode;
 }
 

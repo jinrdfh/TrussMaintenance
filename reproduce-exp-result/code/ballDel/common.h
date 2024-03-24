@@ -14,7 +14,7 @@ using namespace std;
 #include <unordered_map>
 #include <climits>
 
-#define DEBUG_PRINT_BTN
+//#define DEBUG_PRINT_BTN
 #define DEBUG_ASSERT_BTN
 
 #include "tool/debug.h"

@@ -207,11 +207,11 @@ int delPart::updNeibL(myG &mpG, int iEid, vector <int> &vCdtChgLE)
     pstNode = mpG.findNode(iEid);
     DEBUG_ASSERT(NULL != pstNode);
     //DEBUG_ASSERT(pstNode->bInit);
-    DEBUG_ASSERT(pstNode->bLInit);
+    //DEBUG_ASSERT(pstNode->bLInit);
 
-    itLfE = pstNode->vKLfE.begin();
-    itRtE = pstNode->vKRtE.begin();
-    for (; itLfE != pstNode->vKLfE.end(); ++itLfE, ++itRtE)
+    itLfE = pstNode->vLfE.begin();
+    itRtE = pstNode->vRtE.begin();
+    for (; itLfE != pstNode->vLfE.end(); ++itLfE, ++itRtE)
     {
         pstLf = mpG.findNode(*itLfE);
         DEBUG_ASSERT(NULL != pstLf);
@@ -328,11 +328,9 @@ int delPart::recalL(myG &mpG, int iEid)
 
     ++g_lReCalCnt;
 
-    if (!pstNode->bLInit)
+    /*if (!pstNode->bLInit)
     {
         ++g_lLInitCnt;
-        /*DEBUG_PRINTF("CAL_L (%d, %d) new initL k: %d\n",
-                             pstNode->paXY.first, pstNode->paXY.second, pstNode->iTrussness);*/
         pstNode->bLInit = true;
         int iKPSup = 0;
         int iNeibMaxL = 0;
@@ -349,22 +347,10 @@ int delPart::recalL(myG &mpG, int iEid)
             TPST_MAP_BY_EID* pstRt = mpG.findNode(*itRtE);
             //DEBUG_ASSERT(NULL != pstRt);
 
-            /*DEBUG_PRINTF("CAL_L (%d, %d) (%d, %d) k: %d %d layer: %d %d seSup: %d %d self: (%d, %d) k: %d layer: %d Sup: %d %d %d\n",
-                         pstLf->paXY.first, pstLf->paXY.second,
-                         pstRt->paXY.first, pstRt->paXY.second,
-                         pstLf->iTrussness, pstRt->iTrussness,
-                         pstLf->iLayer, pstRt->iLayer,
-                         pstLf->iSeSup, pstRt->iSeSup,
-                         pstNode->paXY.first, pstNode->paXY.second,
-                         pstNode->iTrussness, pstNode->iLayer,
-                         pstNode->iSeSup, pstNode->iKSup, pstNode->iKMSup);*/
 
             int iMinT = COMMON_MIN(pstLf->iTrussness, pstRt->iTrussness);
             if (iMinT == pstNode->iTrussness)
             {
-                /*pstNode->vKLfE.push_back(pstLf->eid);
-                pstNode->vKRtE.push_back(pstRt->eid);*/
-
                 pstNode->vKLfE[iKNeibCnt] = pstLf->eid;
                 pstNode->vKRtE[iKNeibCnt] = pstRt->eid;
                 ++iKNeibCnt;
@@ -397,24 +383,73 @@ int delPart::recalL(myG &mpG, int iEid)
     {
         ++g_lLReuseCnt;
     }
-    /*DEBUG_PRINTF("CAL_L (%d, %d) init done iKPSup: %d iNeibMaxL: %d\n",
+    DEBUG_PRINTF("CAL_L (%d, %d) init done iKPSup: %d iNeibMaxL: %d\n",
                          pstNode->paXY.first, pstNode->paXY.second,
                          pstNode->iKPSup, pstNode->iNeibMaxL);*/
 
     /* build table */
     /* estimate L */
-    /* L, cnt */
-    int iMaxL = COMMON_MIN(pstNode->iLayer, pstNode->iNeibMaxL);
-    vector<int> vLCnt(iMaxL + 2, 0);
-    vector<uint32_t>::iterator itLfE = pstNode->vKLfE.begin();
-    vector<uint32_t>::iterator itRtE = pstNode->vKRtE.begin();
-    for (; itLfE != pstNode->vKLfE.end(); ++itLfE, ++itRtE)
+    int iMaxL = 0;
+    vector<uint32_t>::iterator itLfE = pstNode->vLfE.begin();
+    vector<uint32_t>::iterator itRtE = pstNode->vRtE.begin();
+    for (; itLfE != pstNode->vLfE.end(); ++itLfE, ++itRtE)
     {
         TPST_MAP_BY_EID* pstLf = mpG.findNode(*itLfE);
         //DEBUG_ASSERT(NULL != pstLf);
         TPST_MAP_BY_EID* pstRt = mpG.findNode(*itRtE);
         //DEBUG_ASSERT(NULL != pstRt);
 
+        int iMinT = COMMON_MIN(pstLf->iTrussness, pstRt->iTrussness);
+        if (iMinT != pstNode->iTrussness)
+        {
+            continue;
+        }
+        int iMinL = pstNode->iLayer;
+        if (pstNode->iTrussness == pstLf->iTrussness)
+        {
+            iMinL = COMMON_MIN(iMinL, pstLf->iLayer);
+        }
+        if (pstNode->iTrussness == pstRt->iTrussness)
+        {
+            iMinL = COMMON_MIN(iMinL, pstRt->iLayer);
+        }
+
+        if (iMinL < pstNode->iLayer)
+        {
+            iMaxL = COMMON_MAX(iMaxL, iMinL);
+        }
+    }
+    iMaxL = COMMON_MIN(iMaxL, pstNode->iLayer);
+    /* L, cnt */
+    vector<int> vLCnt(iMaxL + 2, 0);
+    int iKPSup = 0;
+
+    itLfE = pstNode->vLfE.begin();
+    itRtE = pstNode->vRtE.begin();
+    for (; itLfE != pstNode->vLfE.end(); ++itLfE, ++itRtE)
+    {
+        TPST_MAP_BY_EID* pstLf = mpG.findNode(*itLfE);
+        //DEBUG_ASSERT(NULL != pstLf);
+        TPST_MAP_BY_EID* pstRt = mpG.findNode(*itRtE);
+        //DEBUG_ASSERT(NULL != pstRt);
+
+        DEBUG_PRINTF("CAL_L (%d, %d) neighbors: (%d, %d) (%d, %d) k: %d %d Layer: %d %d\n",
+                         pstNode->paXY.first, pstNode->paXY.second,
+                         pstLf->paXY.first, pstLf->paXY.second,
+                         pstRt->paXY.first, pstRt->paXY.second,
+                         pstLf->iTrussness, pstRt->iTrussness,
+                         pstLf->iLayer, pstRt->iLayer);
+
+        int iMinT = COMMON_MIN(pstLf->iTrussness, pstRt->iTrussness);
+        if (iMinT < pstNode->iTrussness)
+        {
+            continue;
+        }
+        else if (iMinT > pstNode->iTrussness)
+        {
+            ++iKPSup;
+            continue;
+        }
         int iMinL = pstNode->iLayer;
         if (pstNode->iTrussness == pstLf->iTrussness)
         {
@@ -433,7 +468,7 @@ int delPart::recalL(myG &mpG, int iEid)
         vLCnt[iMinL]++;
     }
 
-    int iTriCnt = pstNode->iKPSup;
+    int iTriCnt = iKPSup;
     int iCurL = iMaxL + 1;
     for (; iCurL > 0; --iCurL)
     {
@@ -843,7 +878,7 @@ int delPart::updateL(myG &mpG, vector <int> &vCdtE, vector <int> &vChgLE)
 
         /* update neighbors */
         vector<int> vCdtChgLE;
-        vCdtChgLE.reserve(pstNode->vKLfE.size() * 2);
+        vCdtChgLE.reserve(pstNode->vLfE.size() * 2);
         updNeibL(mpG, iEid, vCdtChgLE);
         /* recalculate layer */
         for (int iChgE : vCdtChgLE)

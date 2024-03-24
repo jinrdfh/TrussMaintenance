@@ -12,13 +12,13 @@ typedef struct tpstMapByEid
     int iKSup;
     int iSeSup;
     int iKMSup;
-    int iKPSup; // bLInit
+    //int iKPSup; // bLInit
     int iTrussness;
     int iLayer;
-    int iNeibMaxL; // bLInit
+    //int iNeibMaxL; // bLInit
     int iOldL;
     // bool bInit; // bInit
-    bool bLInit; // bLInit
+    //bool bLInit; // bLInit
     bool bDgdFlag;
     bool bVstFlag;
     bool bRmFlag;
@@ -28,8 +28,8 @@ typedef struct tpstMapByEid
     vector<uint32_t> vLfE; // bInit
     vector<uint32_t> vRtE; // bInit
     /* left eid, right eid , not sorted */
-    vector<uint32_t> vKLfE; // bLInit
-    vector<uint32_t> vKRtE; // bLInit
+    //vector<uint32_t> vKLfE; // bLInit
+    //vector<uint32_t> vKRtE; // bLInit
 } TPST_MAP_BY_EID;
 // adjacency array entry type
 typedef struct stAdjInfo
